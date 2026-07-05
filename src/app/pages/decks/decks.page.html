@@ -1,0 +1,145 @@
+<div class="container page">
+  <!-- header -->
+  <div class="decks-head">
+    <div>
+      <span class="kicker">Your library</span>
+      <h1 class="decks-title">Decks</h1>
+      @if (!loading() && decks().length) {
+        <p class="decks-meta">
+          {{ decks().length }} deck{{ decks().length === 1 ? '' : 's' }} ·
+          {{ totalCards() }} card{{ totalCards() === 1 ? '' : 's' }} ·
+          <span class="decks-meta__due">{{ totalDue() }} due now</span>
+        </p>
+      }
+    </div>
+    <button class="btn btn--accent" (click)="openNew()">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      New deck
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="center-screen"><div class="spinner"></div></div>
+  } @else if (!decks().length) {
+    <div class="panel empty">
+      <div class="empty-illus">✦</div>
+      <h3 style="font-size:1.5rem;margin-bottom:8px">Your library is empty</h3>
+      <p style="max-width:36ch;margin:0 auto 22px">
+        Create your first deck and start collecting cards to remember.
+      </p>
+      <button class="btn btn--accent" (click)="openNew()">Create a deck</button>
+    </div>
+  } @else {
+    <div class="deck-grid">
+      @for (deck of decks(); track deck.id; let i = $index) {
+        <article class="deck-card rise" [style.animation-delay.ms]="i * 55"
+                 [class]="'tone-' + deck.color">
+          <div class="deck-card__spine"></div>
+
+          <!-- options menu -->
+          <button class="deck-card__menu" (click)="toggleMenu(deck.id, $event)"
+                  [class.is-open]="menuOpen() === deck.id" aria-label="Deck options"
+                  [disabled]="deletingId() === deck.id">
+            @if (deletingId() === deck.id) {
+              <span class="spinner" style="width:15px;height:15px;border-width:2px"></span>
+            } @else {
+              <svg class="icon" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
+              </svg>
+            }
+          </button>
+          @if (menuOpen() === deck.id) {
+            <div class="deck-menu">
+              <button class="deck-menu__item deck-menu__item--danger" (click)="deleteDeck(deck, $event)">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Delete deck
+              </button>
+            </div>
+          }
+
+          <a class="deck-card__body" [routerLink]="['/deck', deck.id]">
+            <div class="deck-card__top">
+              <span class="swatch" [class]="'c-' + deck.color"></span>
+              <span class="kicker">{{ deck.total }} card{{ deck.total === 1 ? '' : 's' }}</span>
+            </div>
+            <h2 class="deck-card__name">{{ deck.name }}</h2>
+            @if (deck.description) {
+              <p class="deck-card__desc">{{ deck.description }}</p>
+            }
+          </a>
+          <div class="deck-card__foot">
+            @if (deck.due > 0) {
+              <span class="badge badge--due">{{ deck.due }} due</span>
+            } @else if (deck.total > 0) {
+              <span class="badge badge--done">All caught up</span>
+            } @else {
+              <span class="badge">Empty</span>
+            }
+            @if (deck.due > 0) {
+              <a class="btn btn--sm btn--accent" [routerLink]="['/deck', deck.id, 'study']">
+                Study
+              </a>
+            } @else {
+              <a class="btn btn--sm" [routerLink]="['/deck', deck.id]">Open</a>
+            }
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>
+
+<!-- click-away layer to dismiss the options menu -->
+@if (menuOpen()) {
+  <div class="menu-backdrop" (click)="menuOpen.set(null)"></div>
+}
+
+<!-- create deck modal -->
+@if (modalOpen()) {
+  <div class="modal-scrim" (click)="modalOpen.set(false)">
+    <div class="modal rise" (click)="$event.stopPropagation()">
+      <span class="kicker">New deck</span>
+      <h2 class="modal__title">Create a deck</h2>
+
+      <div class="field" style="margin-top:18px">
+        <label for="dname">Name</label>
+        <input id="dname" class="input" placeholder="e.g. Spanish verbs" maxlength="120"
+               [ngModel]="name()" (ngModelChange)="name.set($event)" />
+      </div>
+
+      <div class="field" style="margin-top:16px">
+        <label for="ddesc">Description <span style="text-transform:none">(optional)</span></label>
+        <textarea id="ddesc" class="textarea" rows="2" maxlength="500"
+                  placeholder="What's this deck about?"
+                  [ngModel]="description()" (ngModelChange)="description.set($event)"></textarea>
+      </div>
+
+      <div class="field" style="margin-top:16px">
+        <label>Colour</label>
+        <div class="color-row">
+          @for (c of colors; track c) {
+            <button type="button" class="color-dot" [class]="'c-' + c"
+                    [class.is-selected]="color() === c"
+                    [attr.aria-label]="c" (click)="color.set(c)"></button>
+          }
+        </div>
+      </div>
+
+      <div class="modal__actions">
+        <button class="btn btn--ghost" (click)="modalOpen.set(false)">Cancel</button>
+        <button class="btn btn--accent" (click)="create()" [disabled]="saving()">
+          @if (saving()) {
+            <span class="spinner" style="width:16px;height:16px;border-width:2px"></span>
+          } @else { Create deck }
+        </button>
+      </div>
+    </div>
+  </div>
+}

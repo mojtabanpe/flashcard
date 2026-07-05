@@ -1,0 +1,142 @@
+:host {
+  display: block;
+  flex: 1;
+}
+
+.auth {
+  min-height: calc(100dvh - 70px);
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+}
+
+/* ---------- left brand panel ---------- */
+.auth__aside {
+  position: relative;
+  overflow: hidden;
+  padding: 48px 56px;
+  display: flex;
+  flex-direction: column;
+  color: var(--on-accent);
+  background:
+    radial-gradient(130% 110% at 0% 0%, #d9573a, transparent 60%),
+    linear-gradient(160deg, var(--accent) 0%, var(--accent-deep) 100%);
+}
+/* faint ledger lines for the "paper" texture on the accent panel */
+.auth__aside::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 37px,
+    rgba(255, 255, 255, 0.07) 38px
+  );
+  pointer-events: none;
+}
+.auth__aside-top { position: relative; z-index: 1; }
+
+.auth__pitch {
+  position: relative;
+  z-index: 1;
+  margin-top: auto;
+}
+.auth__headline {
+  font-size: clamp(2.6rem, 4.6vw, 4rem);
+  font-weight: 600;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
+}
+.auth__headline em {
+  font-style: italic;
+  font-weight: 500;
+  color: #ffe7c9;
+}
+.auth__sub {
+  margin-top: 22px;
+  max-width: 40ch;
+  font-size: 1.02rem;
+  line-height: 1.6;
+  color: rgba(253, 246, 239, 0.82);
+}
+
+/* decorative card stack */
+.cardstack {
+  position: relative;
+  z-index: 1;
+  height: 190px;
+  margin-top: 40px;
+}
+.cardstack__c {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 230px;
+  height: 150px;
+  border-radius: 16px;
+  background: var(--card);
+  box-shadow: var(--shadow-lg);
+}
+.cardstack__c--3 {
+  transform: rotate(-9deg) translate(8px, 6px);
+  background: #f0e7d8;
+  opacity: 0.85;
+}
+.cardstack__c--2 {
+  transform: rotate(5deg) translate(34px, -4px);
+  background: #f6efe3;
+}
+.cardstack__c--1 {
+  transform: rotate(-3deg);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+  color: var(--ink);
+}
+.cardstack__q {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.5rem;
+}
+.cardstack__hint {
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+/* ---------- right form ---------- */
+.auth__form-wrap {
+  display: grid;
+  place-items: center;
+  padding: 40px 28px;
+}
+.auth__form { width: 100%; max-width: 380px; }
+.auth__title {
+  font-size: 2rem;
+  margin: 10px 0 28px;
+}
+.auth__switch {
+  margin-top: 24px;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  text-align: center;
+}
+.auth__link {
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 860px) {
+  .auth { grid-template-columns: 1fr; }
+  .auth__aside { display: none; }
+}

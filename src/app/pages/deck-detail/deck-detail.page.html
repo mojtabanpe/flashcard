@@ -1,0 +1,203 @@
+<div class="container page">
+  @if (loading()) {
+    <div class="center-screen"><div class="spinner"></div></div>
+  } @else if (deck(); as d) {
+    <a class="backlink" routerLink="/">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+      All decks
+    </a>
+
+    <!-- deck header -->
+    <header class="dd-head" [class]="'tone-' + d.color">
+      <div class="dd-head__main">
+        <div class="dd-head__row">
+          <span class="swatch" [class]="'c-' + d.color"></span>
+          <span class="kicker">
+            {{ cards().length }} card{{ cards().length === 1 ? '' : 's' }}
+            @if (dueCount() > 0) { · {{ dueCount() }} due }
+          </span>
+        </div>
+        <h1 class="dd-title">{{ d.name }}</h1>
+        @if (d.description) { <p class="dd-desc">{{ d.description }}</p> }
+      </div>
+
+      <div class="dd-head__actions">
+        @if (cards().length > 0) {
+          <a class="btn btn--accent" [routerLink]="['/deck', d.id, 'study']">
+            <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+            Study {{ dueCount() > 0 ? '(' + dueCount() + ')' : 'all' }}
+          </a>
+        }
+        <button class="btn btn--sm" (click)="openEditDeck()" aria-label="Edit deck">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+          </svg>
+        </button>
+        <button class="btn btn--sm btn--danger" (click)="deleteDeck()" aria-label="Delete deck">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- quick add composer -->
+    <section class="composer panel">
+      <span class="kicker">Add a card</span>
+      <div class="composer__grid">
+        <div class="field">
+          <label for="front">Front</label>
+          <textarea id="front" class="textarea" rows="2" placeholder="Question / prompt"
+                    [ngModel]="front()" (ngModelChange)="front.set($event)"></textarea>
+        </div>
+        <div class="composer__divider" aria-hidden="true"></div>
+        <div class="field">
+          <label for="back">Back</label>
+          <textarea id="back" class="textarea" rows="2" placeholder="Answer"
+                    [ngModel]="back()" (ngModelChange)="back.set($event)"></textarea>
+        </div>
+      </div>
+      <div class="composer__foot">
+        <span class="composer__hint">Tip: keep each card to a single idea.</span>
+        <button class="btn btn--accent" (click)="addCard()" [disabled]="adding()">
+          @if (adding()) {
+            <span class="spinner" style="width:16px;height:16px;border-width:2px"></span>
+          } @else { Add card }
+        </button>
+      </div>
+    </section>
+
+    <!-- card list -->
+    @if (cards().length === 0) {
+      <div class="empty" style="padding:48px 20px">
+        <p>No cards yet — add your first one above.</p>
+      </div>
+    } @else {
+      <div class="cards-head">
+        <span class="kicker">Cards · {{ cards().length }}</span>
+      </div>
+      <ul class="card-list">
+        @for (card of cards(); track card.id; let i = $index) {
+          <li class="card-row rise" [style.animation-delay.ms]="i * 30">
+            <div class="card-row__side">
+              <span class="card-row__tag">Q</span>
+              <div class="card-row__text md" [innerHTML]="card.front | markdown"></div>
+            </div>
+            <div class="card-row__side card-row__side--back">
+              <span class="card-row__tag">A</span>
+              <div class="card-row__text md" [innerHTML]="card.back | markdown"></div>
+            </div>
+            <div class="card-row__actions">
+              <button class="btn btn--ghost btn--sm" (click)="openPreview(card)" aria-label="Show card">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" /><circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+              <button class="btn btn--ghost btn--sm" (click)="openEditCard(card)" aria-label="Edit card">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+                </svg>
+              </button>
+              <button class="btn btn--ghost btn--sm btn--danger" (click)="deleteCard(card)" aria-label="Delete card">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  }
+</div>
+
+<!-- show / preview card modal -->
+@if (previewCard(); as pc) {
+  <div class="modal-scrim" (click)="previewCard.set(null)">
+    <div class="preview rise" (click)="$event.stopPropagation()">
+      <button class="preview__flip" [class.is-flipped]="previewFlipped()"
+              (click)="previewFlipped.set(!previewFlipped())"
+              [attr.aria-label]="previewFlipped() ? 'Show question' : 'Show answer'">
+        <div class="preview__inner">
+          <div class="preview__face">
+            <span class="preview__tag">Question</span>
+            <div class="preview__text md" [innerHTML]="pc.front | markdown"></div>
+            <span class="preview__hint">click to flip</span>
+          </div>
+          <div class="preview__face preview__face--back">
+            <span class="preview__tag">Answer</span>
+            <div class="preview__text md" [innerHTML]="pc.back | markdown"></div>
+            <span class="preview__hint">click to flip</span>
+          </div>
+        </div>
+      </button>
+      <button class="btn btn--sm preview__close" (click)="previewCard.set(null)">Close</button>
+    </div>
+  </div>
+}
+
+<!-- edit card modal -->
+@if (editCard(); as ec) {
+  <div class="modal-scrim" (click)="editCard.set(null)">
+    <div class="modal rise" (click)="$event.stopPropagation()">
+      <span class="kicker">Edit card</span>
+      <h2 class="modal__title">Edit card</h2>
+      <div class="field" style="margin-top:18px">
+        <label for="ef">Front</label>
+        <textarea id="ef" class="textarea" rows="3"
+                  [ngModel]="editFront()" (ngModelChange)="editFront.set($event)"></textarea>
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label for="eb">Back</label>
+        <textarea id="eb" class="textarea" rows="3"
+                  [ngModel]="editBack()" (ngModelChange)="editBack.set($event)"></textarea>
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" (click)="editCard.set(null)">Cancel</button>
+        <button class="btn btn--accent" (click)="saveCard()">Save</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- edit deck modal -->
+@if (deckModal()) {
+  <div class="modal-scrim" (click)="deckModal.set(false)">
+    <div class="modal rise" (click)="$event.stopPropagation()">
+      <span class="kicker">Edit deck</span>
+      <h2 class="modal__title">Deck settings</h2>
+      <div class="field" style="margin-top:18px">
+        <label for="dn">Name</label>
+        <input id="dn" class="input" maxlength="120"
+               [ngModel]="dName()" (ngModelChange)="dName.set($event)" />
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label for="dd">Description</label>
+        <textarea id="dd" class="textarea" rows="2" maxlength="500"
+                  [ngModel]="dDesc()" (ngModelChange)="dDesc.set($event)"></textarea>
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label>Colour</label>
+        <div class="color-row">
+          @for (c of colors; track c) {
+            <button type="button" class="color-dot" [class]="'c-' + c"
+                    [class.is-selected]="dColor() === c" (click)="dColor.set(c)"
+                    [attr.aria-label]="c"></button>
+          }
+        </div>
+      </div>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" (click)="deckModal.set(false)">Cancel</button>
+        <button class="btn btn--accent" (click)="saveDeck()" [disabled]="savingDeck()">Save</button>
+      </div>
+    </div>
+  </div>
+}
