@@ -8,6 +8,7 @@ export interface SrsState {
   ease_factor: number;
   interval_days: number;
   repetitions: number;
+  lapses: number;
   due_at: string;
   last_reviewed_at: string | null;
 }
@@ -22,6 +23,24 @@ const RATING_QUALITY: Record<Rating, number> = {
 const MINUTE = 60 * 1000;
 const DAY = 24 * 60 * MINUTE;
 
+/* ---- Lightner method thresholds ----
+   A card that keeps failing becomes a "leech" and should be pulled out of the
+   review rotation so it stops burning study time. The numbers follow the
+   classic Lightner recipe: suspend after ~8 lapses with a crushed ease factor,
+   and delete a card that has been suspended twice. */
+export const LIGHTNER_LAPSE_THRESHOLD = 8;
+export const LIGHTNER_MAX_SUSPENSIONS = 2;
+
+/** True once a card's failure history marks it a Lightner leech. */
+export function isLeech(card: Pick<Card, 'lapses' | 'ease_factor'>): boolean {
+  return card.lapses >= LIGHTNER_LAPSE_THRESHOLD && card.ease_factor <= 1.3;
+}
+
+/** True when a card has been suspended the maximum number of times. */
+export function isBeyondSalvage(card: Pick<Card, 'suspensions'>): boolean {
+  return card.suspensions >= LIGHTNER_MAX_SUSPENSIONS;
+}
+
 /**
  * SM-2 spaced repetition. Given a card and how the user rated their recall,
  * returns the next ease factor, interval and due date.
@@ -32,15 +51,17 @@ const DAY = 24 * 60 * MINUTE;
  */
 export function schedule(card: Pick<Card, keyof SrsState>, rating: Rating, now = new Date()): SrsState {
   const quality = RATING_QUALITY[rating];
-  let { ease_factor: ease, interval_days: interval, repetitions } = card;
+  let { ease_factor: ease, interval_days: interval, repetitions, lapses } = card;
 
   if (quality < 3) {
     repetitions = 0;
     interval = 0;
+    lapses += 1;
     return {
       ease_factor: Math.max(1.3, ease - 0.2),
       interval_days: interval,
       repetitions,
+      lapses,
       due_at: new Date(now.getTime() + 5 * MINUTE).toISOString(),
       last_reviewed_at: now.toISOString(),
     };
@@ -65,6 +86,7 @@ export function schedule(card: Pick<Card, keyof SrsState>, rating: Rating, now =
     ease_factor: Math.round(ease * 100) / 100,
     interval_days: interval,
     repetitions,
+    lapses,
     due_at: new Date(now.getTime() + interval * DAY).toISOString(),
     last_reviewed_at: now.toISOString(),
   };

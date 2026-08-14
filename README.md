@@ -1,6 +1,6 @@
 # Recall — spaced-repetition flashcards
 
-A warm, focused flashcard app built with **Angular 22** (standalone, zoneless,
+A vibrant, focused flashcard app built with **Angular 22** (standalone, zoneless,
 signals) and **Supabase** (Postgres + Auth + Row-Level Security). Create decks,
 add cards, and review them on an SM-2 spaced-repetition schedule.
 
@@ -11,9 +11,13 @@ add cards, and review them on an SM-2 spaced-repetition schedule.
 - **Study mode** — a 3D flip card, four-grade rating (Again / Hard / Good / Easy)
   with next-interval previews, keyboard shortcuts (`Space` to flip, `1–4` to grade),
   and a progress bar.
+- **Lightner method** — cards that keep failing (8+ lapses with a crushed ease
+  factor) are auto-suspended as "leeches" so they stop burning review time;
+  suspended cards can be restored from the deck page, and cards suspended twice
+  are flagged for deletion.
 - **SM-2 scheduling** — ease factor, interval and due date update on every review
   ([`src/app/core/srs.ts`](src/app/core/srs.ts)).
-- **Design** — "card-catalog / archive" aesthetic: cream paper, vermillion accent,
+- **Design** — bold, modern interface: clean white cards with vibrant blue accents,
   Fraunces display serif, Archivo UI, DM Mono labels.
 
 ## Project structure
@@ -48,7 +52,7 @@ publishable key — safe to ship to the browser; RLS protects the data).
 Schema (applied via migrations):
 
 - `decks` — `id, user_id, name, description, color, timestamps`
-- `cards` — `id, deck_id, user_id, front, back, ease_factor, interval_days, repetitions, due_at, last_reviewed_at, timestamps`
+- `cards` — `id, deck_id, user_id, front, back, ease_factor, interval_days, repetitions, lapses, suspended, suspensions, due_at, last_reviewed_at, timestamps`
 - RLS policies restrict every row to `auth.uid() = user_id`.
 - A `before insert` trigger on `auth.users` auto-confirms new signups, because no
   SMTP is configured — so users can sign in immediately after registering. If you

@@ -9,6 +9,17 @@
              stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
         Exit
       </a>
+      @if (current(); as card) {
+        <button class="btn btn--ghost btn--sm btn--danger study__delete" (click)="confirmDelete.set(true)"
+                [disabled]="busy()" aria-label="Delete this card">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+          <span class="study__delete-label">Delete</span>
+        </button>
+      }
       <div class="study__progress">
         <div class="study__progress-bar"><span [style.width.%]="progress()"></span></div>
       </div>
@@ -18,43 +29,73 @@
     </div>
 
     <div class="study__deckname kicker">
-      {{ deck()?.name }} @if (mode() === 'practice') { · practice }
+      {{ deck()?.name }}
     </div>
 
     @if (done()) {
-      <!-- session complete -->
-      <div class="finish rise">
-        <div class="finish__seal">✓</div>
-        <h1 class="finish__title">Session complete</h1>
-        <p class="finish__sub">
-          You reviewed {{ reviewed() }} card{{ reviewed() === 1 ? '' : 's' }}. Beautifully done.
-        </p>
-        <div class="finish__actions">
-          <a class="btn btn--accent btn--lg" [routerLink]="['/deck', id()]">Back to deck</a>
-          <a class="btn btn--lg" routerLink="/">All decks</a>
+      @if (reviewed() === 0) {
+        <!-- nothing was due -->
+        <div class="finish rise">
+          <div class="finish__seal">✓</div>
+          <h1 class="finish__title">All caught up</h1>
+          <p class="finish__sub">
+            No cards are due for review in this deck right now. Come back later —
+            or study again and cards you miss will return sooner.
+          </p>
+          <div class="finish__actions">
+            <a class="btn btn--accent btn--lg" [routerLink]="['/deck', id()]">Back to deck</a>
+            <a class="btn btn--lg" routerLink="/">All decks</a>
+          </div>
         </div>
-      </div>
+      } @else {
+        <!-- session complete -->
+        <div class="finish rise">
+          <div class="finish__seal">✓</div>
+          <h1 class="finish__title">Session complete</h1>
+          <p class="finish__sub">
+            You reviewed {{ reviewed() }} card{{ reviewed() === 1 ? '' : 's' }}. Beautifully done.
+          </p>
+          <div class="finish__actions">
+            <a class="btn btn--accent btn--lg" [routerLink]="['/deck', id()]">Back to deck</a>
+            <a class="btn btn--lg" routerLink="/">All decks</a>
+          </div>
+        </div>
+      }
     } @else if (current(); as card) {
       <!-- flip card -->
       <div class="stage">
-        <button class="flip" [class.is-flipped]="flipped()" (click)="!flipped() && reveal()"
-                [attr.aria-label]="flipped() ? 'Answer' : 'Reveal answer'">
-          <div class="flip__inner">
-            <div class="flip__face flip__face--front">
-              <span class="flip__tag">Question</span>
-              <div class="flip__body">
-                <div class="flip__text md" [innerHTML]="card.front | markdown"></div>
+        <div class="flip-wrap">
+          <button class="flip__speaker" (click)="speak()"
+                  aria-label="Play pronunciation">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+              <path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a9 9 0 0 1 0 14" />
+            </svg>
+          </button>
+          <button class="flip" [class.is-flipped]="flipped()" (click)="toggle()"
+                  [attr.aria-label]="flipped() ? 'Show card again' : 'Reveal answer'">
+            <div class="flip__inner">
+              <div class="flip__face flip__face--front">
+                <span class="flip__tag">Question</span>
+                <div class="flip__body">
+                  <div class="flip__text md" [innerHTML]="card.front | markdown"></div>
+                </div>
+                <span class="flip__hint">click or press space to flip</span>
               </div>
-              <span class="flip__hint">click or press space to flip</span>
-            </div>
-            <div class="flip__face flip__face--back">
-              <span class="flip__tag">Answer</span>
-              <div class="flip__body">
-                <div class="flip__text md" [innerHTML]="card.back | markdown"></div>
+              <div class="flip__face flip__face--back">
+                @let parts = backParts(card.back);
+                <span class="flip__tag">Answer</span>
+                @if (parts.unit) {
+                  <span class="flip__unit">{{ parts.unit }}</span>
+                }
+                <div class="flip__body">
+                  <div class="flip__text md" [innerHTML]="parts.body | markdown"></div>
+                </div>
               </div>
             </div>
-          </div>
-        </button>
+          </button>
+        </div>
       </div>
 
       <!-- rating controls -->
@@ -68,9 +109,28 @@
           </button>
         }
       </div>
-      @if (!flipped()) {
+      @@if (!flipped()) {
         <p class="rate__placeholder">Reveal the answer to grade your recall.</p>
       }
     }
   }
 </div>
+
+<!-- delete confirmation modal -->
+@if (confirmDelete()) {
+  <div class="modal-scrim" (click)="confirmDelete.set(false)">
+    <div class="modal rise" (click)="$event.stopPropagation()">
+      <span class="kicker">Delete card</span>
+      <h2 class="modal__title">Delete this card?</h2>
+      <p style="color:var(--ink-soft);margin-top:10px;line-height:1.5">This removes the card permanently. This cannot be undone.</p>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" (click)="confirmDelete.set(false)">Cancel</button>
+        <button class="btn btn--danger" (click)="deleteCurrent()" [disabled]="busy()">
+          @if (busy()) {
+            <span class="spinner" style="width:16px;height:16px;border-width:2px"></span>
+          } @else { Delete }
+        </button>
+      </div>
+    </div>
+  </div>
+}

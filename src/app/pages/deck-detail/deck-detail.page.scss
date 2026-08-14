@@ -85,7 +85,31 @@
   line-height: 1.45;
   word-break: break-word;
 }
+.card-row__back {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.card-row__unit {
+  align-self: flex-start;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-radius: 6px;
+  padding: 2px 7px;
+}
 .card-row__actions { display: flex; gap: 2px; }
+
+/* suspended leeches (Lightner) */
+.leech-section { margin-top: 42px; padding-top: 26px; border-top: 1px dashed var(--line); }
+.leech-section .cards-head { margin-top: 0; }
+.leech-note { margin: -6px 0 16px; color: var(--ink-soft); font-size: 0.86rem; max-width: 70ch; }
+.leech-row { border-color: color-mix(in srgb, var(--warn) 35%, var(--line)); background: color-mix(in srgb, var(--warn) 5%, var(--card)); }
+.leech-row .card-row__tag { background: color-mix(in srgb, var(--warn) 18%, var(--card)); color: #7a5400; }
+.leech-row .card-row__actions { align-items: center; gap: 6px; }
 
 /* show / preview flip card */
 .preview {
@@ -128,7 +152,27 @@
   flex-direction: column;
   overflow: hidden;
 }
-.preview__face--back { transform: rotateY(180deg); background-color: #fffaf2; }
+.preview__face--back { transform: rotateY(180deg); background-color: #f0f8ff; }
+.preview__speaker {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--accent);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.preview__speaker:hover { transform: scale(1.08); background: var(--accent-tint); }
+.preview__speaker:active { transform: scale(0.96); }
+.preview__speaker .icon { width: 17px; height: 17px; }
 .preview__tag {
   flex: none;
   padding-bottom: 11px;
@@ -141,6 +185,19 @@
   color: var(--ink-faint);
 }
 .preview__face--back .preview__tag { color: var(--accent); }
+.preview__unit {
+  flex: none;
+  align-self: center;
+  margin: 12px 0 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-radius: 999px;
+  padding: 4px 14px;
+}
 .preview__text {
   flex: 1 1 auto;
   min-height: 0;

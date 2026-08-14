@@ -1,38 +1,38 @@
 /* ============================================================
    Recall — design system
-   A warm "card-catalog / archive" aesthetic: cream paper, ink,
-   a vintage vermillion accent. Display serif + clean sans + mono.
+   A bold, modern aesthetic: clean white cards, vibrant blue accent.
+   Display serif + clean sans + mono.
    ============================================================ */
 
 :root {
   /* paper + ink */
-  --paper: #f3ece1;
-  --paper-2: #ece1d1;
-  --card: #fbf7f0;
-  --ink: #211b16;
-  --ink-soft: #6f6256;
-  --ink-faint: #a2937f;
-  --line: #ddcfba;
-  --line-strong: #c9b89e;
+  --paper: #f8f9fa;
+  --paper-2: #e9ecef;
+  --card: #ffffff;
+  --ink: #212529;
+  --ink-soft: #6c757d;
+  --ink-faint: #adb5d0;
+  --line: #dee2e6;
+  --line-strong: #ced4da;
 
-  /* accent — library vermillion */
-  --accent: #c4452d;
-  --accent-deep: #a3361f;
-  --accent-tint: #f6e2d8;
-  --on-accent: #fdf6ef;
+  /* accent — bold blue */
+  --accent: #0066FF;
+  --accent-deep: #0052cc;
+  --accent-tint: #e6f0ff;
+  --on-accent: #ffffff;
 
   /* feedback */
-  --good: #5c7f54;
-  --good-tint: #e3ecdd;
-  --warn: #b07d2a;
+  --good: #28a745;
+  --good-tint: #d4edda;
+  --warn: #ffc107;
 
-  /* deck swatches */
-  --c-amber: #d29328;
-  --c-rose: #c1566a;
-  --c-sage: #6f8f6a;
-  --c-sky: #4f7a96;
-  --c-violet: #876aa6;
-  --c-clay: #b56546;
+  /* deck swatches — bold & vibrant */
+  --c-amber: #ff9800;
+  --c-rose: #e91e63;
+  --c-sage: #8bc34a;
+  --c-sky: #03a9f4;
+  --c-violet: #9c27b0;
+  --c-clay: #ff5722;
 
   /* type */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
@@ -40,11 +40,11 @@
   --font-mono: 'DM Mono', ui-monospace, monospace;
 
   /* shape */
-  --radius: 14px;
-  --radius-lg: 22px;
-  --shadow-sm: 0 1px 0 var(--line), 0 2px 6px rgba(60, 42, 24, 0.06);
-  --shadow-md: 0 2px 4px rgba(60, 42, 24, 0.08), 0 14px 30px rgba(60, 42, 24, 0.1);
-  --shadow-lg: 0 30px 60px -20px rgba(60, 42, 24, 0.28);
+  --radius: 16px;
+  --radius-lg: 24px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-md: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23);
+  --shadow-lg: 0 10px 20px rgba(0, 0, 0, 0.19), 0 6px 6px rgba(0, 0, 0, 0.23);
 }
 
 * {
@@ -61,12 +61,7 @@ body {
   font-family: var(--font-ui);
   color: var(--ink);
   background-color: var(--paper);
-  /* layered paper grain + warm light pooling from the top */
-  background-image:
-    radial-gradient(120% 80% at 50% -10%, rgba(255, 251, 244, 0.9), transparent 60%),
-    radial-gradient(60% 50% at 100% 0%, rgba(196, 69, 45, 0.05), transparent 70%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
-  background-attachment: fixed;
+  background-image: radial-gradient(circle at 0 0, #e7f3ff 0%, transparent 50%);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -344,6 +339,11 @@ button {
   border-color: color-mix(in srgb, var(--good) 35%, var(--line));
   background: var(--good-tint);
 }
+.badge--leech {
+  color: #7a5400;
+  border-color: color-mix(in srgb, var(--warn) 45%, var(--line));
+  background: color-mix(in srgb, var(--warn) 14%, var(--card));
+}
 
 /* deck color helpers */
 .swatch {
@@ -484,8 +484,8 @@ button {
 .md pre {
   margin: 0.6em 0;
   padding: 14px 16px;
-  background: #2b2520;
-  color: #f3ece1;
+  background: #1e293b;
+  color: #f1f5f9;
   border-radius: 12px;
   overflow-x: auto;
   text-align: left;

@@ -15,6 +15,14 @@
   align-items: center;
   gap: 16px;
 }
+.study__delete {
+  flex: none;
+}
+@media (max-width: 560px) {
+  .study__delete-label {
+    display: none;
+  }
+}
 .study__progress { flex: 1; }
 .study__progress-bar {
   height: 8px;
@@ -45,13 +53,18 @@
   place-items: center;
   padding: 30px 0;
 }
+/* wrap keeps the speaker outside the 3D-flipped card so it never moves */
+.flip-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 540px;
+}
 .flip {
   appearance: none;
   border: none;
   background: none;
   padding: 0;
   width: 100%;
-  max-width: 540px;
   aspect-ratio: 3 / 2;
   perspective: 1600px;
   cursor: pointer;
@@ -82,7 +95,7 @@
 }
 .flip__face--back {
   transform: rotateY(180deg);
-  background-color: #fffaf2;
+  background-color: #f0f8ff;
 }
 .flip__tag {
   flex: none;
@@ -96,6 +109,48 @@
   color: var(--ink-faint);
 }
 .flip__face--back .flip__tag { color: var(--accent); }
+
+/* speaker button to play pronunciation */
+.flip__speaker {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 5;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--accent);
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+.flip__speaker:hover {
+  transform: scale(1.08);
+  background: var(--accent-tint);
+  box-shadow: var(--shadow-md);
+}
+.flip__speaker:active { transform: scale(0.96); }
+.flip__speaker .icon { width: 18px; height: 18px; }
+
+/* unit subtitle (U1, U2, …) — the unit is shown as a small label above the body */
+.flip__unit {
+  flex: none;
+  align-self: center;
+  margin-top: 10px;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-radius: 999px;
+  padding: 4px 14px;
+  letter-spacing: 0.04em;
+}
 
 /* scrollable region; margin:auto on the text centres it when short
    but lets it scroll from the top (without clipping) when long */
@@ -212,7 +267,7 @@
   display: grid; place-items: center;
   font-size: 2.6rem;
   color: var(--on-accent);
-  background: radial-gradient(circle at 35% 30%, #d9573a, var(--accent));
+  background: radial-gradient(circle at 35% 30%, #4d94ff, var(--accent));
   box-shadow: var(--shadow-lg), inset 0 2px 4px rgba(255, 255, 255, 0.3);
   margin-bottom: 18px;
 }

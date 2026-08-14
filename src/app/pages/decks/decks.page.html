@@ -75,13 +75,20 @@
             }
           </a>
           <div class="deck-card__foot">
-            @if (deck.due > 0) {
-              <span class="badge badge--due">{{ deck.due }} due</span>
-            } @else if (deck.total > 0) {
-              <span class="badge badge--done">All caught up</span>
-            } @else {
-              <span class="badge">Empty</span>
-            }
+            <div class="deck-card__badges">
+              @if (deck.due > 0) {
+                <span class="badge badge--due">{{ deck.due }} due</span>
+              } @else if (deck.total > 0) {
+                <span class="badge badge--done">All caught up</span>
+              } @else {
+                <span class="badge">Empty</span>
+              }
+              @if (deck.suspended > 0) {
+                <span class="badge badge--leech" [attr.aria-label]="deck.suspended + ' suspended leech card(s)'">
+                  {{ deck.suspended }} suspended
+                </span>
+              }
+            </div>
             @if (deck.due > 0) {
               <a class="btn btn--sm btn--accent" [routerLink]="['/deck', deck.id, 'study']">
                 Study

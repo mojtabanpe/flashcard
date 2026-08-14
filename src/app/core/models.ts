@@ -21,6 +21,12 @@ export interface Card {
   ease_factor: number;
   interval_days: number;
   repetitions: number;
+  /** Times this card was rated "Again". Lightner tracks this to find leeches. */
+  lapses: number;
+  /** Leeches (or manually hidden cards) are pulled out of the review rotation. */
+  suspended: boolean;
+  /** How many times this card has been suspended — Lightner deletes at 2. */
+  suspensions: number;
   due_at: string;
   last_reviewed_at: string | null;
   created_at: string;
@@ -31,6 +37,7 @@ export interface Card {
 export interface DeckWithStats extends Deck {
   total: number;
   due: number;
+  suspended: number;
 }
 
 /** How well the user recalled a card during review. */

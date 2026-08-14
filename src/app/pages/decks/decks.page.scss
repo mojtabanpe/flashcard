@@ -157,6 +157,13 @@
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--tone) 6%, transparent);
 }
+.deck-card__badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
 
 @media (max-width: 560px) {
   .decks-head { flex-direction: column; align-items: stretch; }

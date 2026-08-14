@@ -16,6 +16,7 @@
           <span class="kicker">
             {{ cards().length }} card{{ cards().length === 1 ? '' : 's' }}
             @if (dueCount() > 0) { · {{ dueCount() }} due }
+            @if (suspendedCards().length > 0) { · {{ suspendedCards().length }} suspended }
           </span>
         </div>
         <h1 class="dd-title">{{ d.name }}</h1>
@@ -26,7 +27,7 @@
         @if (cards().length > 0) {
           <a class="btn btn--accent" [routerLink]="['/deck', d.id, 'study']">
             <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-            Study {{ dueCount() > 0 ? '(' + dueCount() + ')' : 'all' }}
+            Study @if (dueCount() > 0) { ({{ dueCount() }}) }
           </a>
         }
         <button class="btn btn--sm" (click)="openEditDeck()" aria-label="Edit deck">
@@ -78,10 +79,10 @@
       </div>
     } @else {
       <div class="cards-head">
-        <span class="kicker">Cards · {{ cards().length }}</span>
+        <span class="kicker">Cards · {{ activeCards().length }}</span>
       </div>
       <ul class="card-list">
-        @for (card of cards(); track card.id; let i = $index) {
+        @for (card of activeCards(); track card.id; let i = $index) {
           <li class="card-row rise" [style.animation-delay.ms]="i * 30">
             <div class="card-row__side">
               <span class="card-row__tag">Q</span>
@@ -89,7 +90,13 @@
             </div>
             <div class="card-row__side card-row__side--back">
               <span class="card-row__tag">A</span>
-              <div class="card-row__text md" [innerHTML]="card.back | markdown"></div>
+              @let spl = backPartsOf(card.back);
+              <div class="card-row__back">
+                @if (spl.unit) {
+                  <span class="card-row__unit">{{ spl.unit }}</span>
+                }
+                <div class="card-row__text md" [innerHTML]="spl.body | markdown"></div>
+              </div>
             </div>
             <div class="card-row__actions">
               <button class="btn btn--ghost btn--sm" (click)="openPreview(card)" aria-label="Show card">
@@ -116,6 +123,59 @@
         }
       </ul>
     }
+
+    <!-- suspended leeches (Lightner) -->
+    @if (suspendedCards().length > 0) {
+      <div class="leech-section">
+        <div class="cards-head">
+          <span class="kicker">Suspended leeches · {{ suspendedCards().length }}</span>
+        </div>
+        <p class="leech-note">
+          These cards kept failing, so the Lightner method parked them. Restore one
+          to give it a fresh start, or delete cards you've suspended twice.
+        </p>
+        <ul class="card-list">
+          @for (card of suspendedCards(); track card.id; let i = $index) {
+            <li class="card-row leech-row rise" [style.animation-delay.ms]="i * 30">
+              <div class="card-row__side">
+                <span class="card-row__tag">Q</span>
+                <div class="card-row__text md" [innerHTML]="card.front | markdown"></div>
+              </div>
+              <div class="card-row__side card-row__side--back">
+                <span class="card-row__tag">A</span>
+                @let spl = backPartsOf(card.back);
+                <div class="card-row__back">
+                  @if (spl.unit) {
+                    <span class="card-row__unit">{{ spl.unit }}</span>
+                  }
+                  <div class="card-row__text md" [innerHTML]="spl.body | markdown"></div>
+                </div>
+              </div>
+              <div class="card-row__actions">
+                @if (isBeyondSalvage(card)) {
+                  <span class="badge">Suspended 2×</span>
+                }
+                <button class="btn btn--sm" (click)="unsuspendCard(card)" aria-label="Restore card">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                    <path d="M3 3v5h5" />
+                  </svg>
+                  Restore
+                </button>
+                <button class="btn btn--sm btn--danger" (click)="deleteCard(card)" aria-label="Delete card">
+                  <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              </div>
+            </li>
+          }
+        </ul>
+      </div>
+    }
   }
 </div>
 
@@ -128,13 +188,33 @@
               [attr.aria-label]="previewFlipped() ? 'Show question' : 'Show answer'">
         <div class="preview__inner">
           <div class="preview__face">
+            <button class="preview__speaker" (click)="$event.stopPropagation(); speak(pc.front)"
+                    aria-label="Play pronunciation of the question">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a9 9 0 0 1 0 14" />
+              </svg>
+            </button>
             <span class="preview__tag">Question</span>
             <div class="preview__text md" [innerHTML]="pc.front | markdown"></div>
             <span class="preview__hint">click to flip</span>
           </div>
           <div class="preview__face preview__face--back">
+            @let spl = backPartsOf(pc.back);
+            <button class="preview__speaker" (click)="$event.stopPropagation(); speak(spl.body)"
+                    aria-label="Play pronunciation of the answer">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                <path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a9 9 0 0 1 0 14" />
+              </svg>
+            </button>
             <span class="preview__tag">Answer</span>
-            <div class="preview__text md" [innerHTML]="pc.back | markdown"></div>
+            @if (spl.unit) {
+              <span class="preview__unit">{{ spl.unit }}</span>
+            }
+            <div class="preview__text md" [innerHTML]="spl.body | markdown"></div>
             <span class="preview__hint">click to flip</span>
           </div>
         </div>

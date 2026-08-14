@@ -18,7 +18,7 @@
   flex-direction: column;
   color: var(--on-accent);
   background:
-    radial-gradient(130% 110% at 0% 0%, #d9573a, transparent 60%),
+    radial-gradient(130% 110% at 0% 0%, #4d94ff, transparent 60%),
     linear-gradient(160deg, var(--accent) 0%, var(--accent-deep) 100%);
 }
 /* faint ledger lines for the "paper" texture on the accent panel */
@@ -50,14 +50,14 @@
 .auth__headline em {
   font-style: italic;
   font-weight: 500;
-  color: #ffe7c9;
+  color: #cfe4ff;
 }
 .auth__sub {
   margin-top: 22px;
   max-width: 40ch;
   font-size: 1.02rem;
   line-height: 1.6;
-  color: rgba(253, 246, 239, 0.82);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 /* decorative card stack */
@@ -79,7 +79,7 @@
 }
 .cardstack__c--3 {
   transform: rotate(-9deg) translate(8px, 6px);
-  background: #f0e7d8;
+  background: #e3f2fd;
   opacity: 0.85;
 }
 .cardstack__c--2 {

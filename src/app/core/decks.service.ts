@@ -22,15 +22,16 @@ export class DecksService {
 
     const { data: cards, error: cardErr } = await this.db
       .from('cards')
-      .select('deck_id, due_at');
+      .select('deck_id, due_at, suspended');
     if (cardErr) throw cardErr;
 
     const now = Date.now();
-    const counts = new Map<string, { total: number; due: number }>();
+    const counts = new Map<string, { total: number; due: number; suspended: number }>();
     for (const c of cards ?? []) {
-      const entry = counts.get(c.deck_id) ?? { total: 0, due: 0 };
+      const entry = counts.get(c.deck_id) ?? { total: 0, due: 0, suspended: 0 };
       entry.total += 1;
-      if (new Date(c.due_at).getTime() <= now) entry.due += 1;
+      if (!c.suspended && new Date(c.due_at).getTime() <= now) entry.due += 1;
+      if (c.suspended) entry.suspended += 1;
       counts.set(c.deck_id, entry);
     }
 
@@ -38,6 +39,7 @@ export class DecksService {
       ...(d as Deck),
       total: counts.get(d.id)?.total ?? 0,
       due: counts.get(d.id)?.due ?? 0,
+      suspended: counts.get(d.id)?.suspended ?? 0,
     }));
   }
 

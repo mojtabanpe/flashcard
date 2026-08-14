@@ -5,6 +5,9 @@ import { DecksService } from '../../core/decks.service';
 import { CardsService } from '../../core/cards.service';
 import { ToastService } from '../../core/toast.service';
 import { Card, DECK_COLORS, Deck, DeckColor } from '../../core/models';
+import { isBeyondSalvage } from '../../core/srs';
+import { splitUnit } from '../../core/format';
+import { TtsService } from '../../core/tts.service';
 import { MarkdownPipe } from '../../core/markdown.pipe';
 
 @Component({
@@ -20,6 +23,7 @@ export class DeckDetailPage {
   private readonly decksSvc = inject(DecksService);
   private readonly cardsSvc = inject(CardsService);
   private readonly toast = inject(ToastService);
+  private readonly tts = inject(TtsService);
   private readonly router = inject(Router);
 
   protected readonly colors = DECK_COLORS;
@@ -28,8 +32,25 @@ export class DeckDetailPage {
   protected readonly loading = signal(true);
 
   protected readonly dueCount = computed(
-    () => this.cards().filter((c) => new Date(c.due_at).getTime() <= Date.now()).length,
+    () =>
+      this.cards().filter((c) => !c.suspended && new Date(c.due_at).getTime() <= Date.now())
+        .length,
   );
+
+  protected readonly activeCards = computed(() => this.cards().filter((c) => !c.suspended));
+  protected readonly suspendedCards = computed(() => this.cards().filter((c) => c.suspended));
+
+  protected readonly isBeyondSalvage = isBeyondSalvage;
+
+  /** Split a card's back into its unit subtitle (U1, …) and the body. */
+  protected backPartsOf(back: string) {
+    return splitUnit(back);
+  }
+
+  /** Play pronunciation of a piece of card text. */
+  protected speak(text: string) {
+    this.tts.speak(text);
+  }
 
   // quick add composer
   protected readonly front = signal('');
@@ -133,6 +154,16 @@ export class DeckDetailPage {
       this.toast.show('Card deleted');
     } catch (e: any) {
       this.toast.error(e?.message ?? 'Could not delete card.');
+    }
+  }
+
+  protected async unsuspendCard(card: Card) {
+    try {
+      await this.cardsSvc.unsuspend(card.id);
+      this.cards.update((list) => list.map((c) => (c.id === card.id ? { ...c, suspended: false, lapses: 0 } : c)));
+      this.toast.show('Card restored to rotation');
+    } catch (e: any) {
+      this.toast.error(e?.message ?? 'Could not restore card.');
     }
   }
 
