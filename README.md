@@ -33,8 +33,8 @@ src/styles.scss  global design system (CSS variables, components)
 ## Running locally
 
 ```bash
-npm install
-npm start        # serves on http://localhost:4333
+pnpm install
+pnpm start       # serves on http://localhost:4333
 ```
 
 Open http://localhost:4333, create an account, and start building decks.
@@ -58,5 +58,5 @@ Schema (applied via migrations):
 ## Build
 
 ```bash
-npm run build    # production build into dist/
+pnpm run build   # production build into dist/
 ```
