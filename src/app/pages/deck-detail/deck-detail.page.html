@@ -53,7 +53,7 @@
         <div class="field">
           <label for="front">Front</label>
           <textarea id="front" class="textarea" rows="2" placeholder="Question / prompt"
-                    [ngModel]="front()" (ngModelChange)="front.set($event)"></textarea>
+                    [ngModel]="front()" (ngModelChange)="front.set($event)" (blur)="autoFillBack()"></textarea>
         </div>
         <div class="composer__divider" aria-hidden="true"></div>
         <div class="field">
@@ -61,7 +61,7 @@
             <label for="back">Back</label>
             <button type="button" class="btn btn--ghost btn--sm ai-fill" (click)="fillBackWithAi()"
                     [disabled]="generating() || !front().trim()"
-                    title="Generate the answer with AI from the front">
+                    title="Generate the definition and examples with AI from the front">
               @if (generating()) {
                 <span class="spinner" style="width:14px;height:14px;border-width:2px"></span>
               } @else {
@@ -87,13 +87,14 @@
         <div class="field">
           <label for="examples">Examples (optional)</label>
           <textarea id="examples" class="textarea" rows="2" placeholder="Shown when you press !"
-                    [ngModel]="examples()" (ngModelChange)="examples.set($event)"></textarea>
+                    [ngModel]="examples()" (ngModelChange)="examples.set($event)"
+                    [disabled]="generating()"></textarea>
         </div>
       </div>
       @if (composerError()) { <p class="form-error" role="alert">{{ composerError() }}</p> }
       <div class="composer__foot">
         <span class="composer__hint">Tip: keep each card to a single idea.</span>
-        <button class="btn btn--accent" (click)="addCard()" [disabled]="adding()">
+        <button class="btn btn--accent" (click)="addCard()" [disabled]="adding() || generating()">
           @if (adding()) {
             <span class="spinner" style="width:16px;height:16px;border-width:2px"></span>
           } @else { Add card }

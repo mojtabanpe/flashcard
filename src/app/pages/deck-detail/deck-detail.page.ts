@@ -149,22 +149,31 @@ export class DeckDetailPage {
     }
   }
 
-  /** Fill the back of the quick-add composer with an AI-suggested answer. */
+  /** Fill the back (and empty examples) of the quick-add composer with an AI-suggested answer. */
   protected async fillBackWithAi() {
     const front = this.front().trim();
     if (!front) {
       this.toast.error('Write the front of the card first.');
       return;
     }
+    if (this.generating()) return;
     this.generating.set(true);
     try {
-      const d = this.deck();
-      this.back.set(await this.ai.suggestAnswer(front, d ? { name: d.name, description: d.description } : undefined));
+      const answer = await this.ai.suggestAnswer(front, this.deck()?.name);
+      // Ignore a late answer if the front was changed or the card was saved meanwhile.
+      if (this.front().trim() !== front) return;
+      this.back.set(answer.back);
+      if (!this.examples().trim()) this.examples.set(answer.examples);
     } catch (e: any) {
       this.toast.error(e?.message ?? 'Could not generate an answer.');
     } finally {
       this.generating.set(false);
     }
+  }
+
+  /** Complete the answer automatically once the front is written and the back is still empty. */
+  protected autoFillBack() {
+    if (this.front().trim() && !this.back().trim()) this.fillBackWithAi();
   }
 
   protected openPreview(card: Card) {
