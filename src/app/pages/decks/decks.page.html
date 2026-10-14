@@ -2,8 +2,9 @@
   <!-- header -->
   <div class="decks-head">
     <div>
-      <span class="kicker">Your library</span>
-      <h1 class="decks-title">Decks</h1>
+
+      <h1 class="decks-title">Your library</h1>
+      <p class="decks-intro">A little practice. A lasting memory.</p>
       @if (!loading() && decks().length) {
         <p class="decks-meta">
           {{ decks().length }} deck{{ decks().length === 1 ? '' : 's' }} ·
@@ -25,7 +26,7 @@
     <div class="center-screen"><div class="spinner"></div></div>
   } @else if (!decks().length) {
     <div class="panel empty">
-      <div class="empty-illus">✦</div>
+      <div class="empty-illus" aria-hidden="true">R</div>
       <h3 style="font-size:1.5rem;margin-bottom:8px">Your library is empty</h3>
       <p style="max-width:36ch;margin:0 auto 22px">
         Create your first deck and start collecting cards to remember.
@@ -33,15 +34,39 @@
       <button class="btn btn--accent" (click)="openNew()">Create a deck</button>
     </div>
   } @else {
+    @if (recommended(); as next) {
+      <section class="review-banner" aria-label="Ready to review">
+        <div>
+          <h2>Keep your words fresh.</h2>
+          <p>{{ totalDue() }} cards are ready for review. Start with {{ next.name }}.</p>
+        </div>
+        <a class="btn btn--accent" [routerLink]="['/deck', next.id, 'study']">Start review
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 5 7 7-7 7" /></svg>
+        </a>
+      </section>
+    }
+    <div class="library-tools">
+      <h2>Your decks <span>{{ decks().length }}</span></h2>
+      <div class="library-search field">
+        <label class="sr-only" for="deck-search">Search decks</label>
+        <input id="deck-search" type="search" class="input" placeholder="Search decks…"
+               [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      </div>
+    </div>
+    @if (!filteredDecks().length) {
+      <div class="empty"><h3>No matching decks</h3><p>Try another name or clear your search.</p>
+        <button class="btn" (click)="search.set('')">Clear search</button>
+      </div>
+    }
     <div class="deck-grid">
-      @for (deck of decks(); track deck.id; let i = $index) {
-        <article class="deck-card rise" [style.animation-delay.ms]="i * 55"
+      @for (deck of filteredDecks(); track deck.id; let i = $index) {
+        <article class="deck-card" [class.menu-open]="menuOpen() === deck.id"
                  [class]="'tone-' + deck.color">
           <div class="deck-card__spine"></div>
 
           <!-- options menu -->
           <button class="deck-card__menu" (click)="toggleMenu(deck.id, $event)"
-                  [class.is-open]="menuOpen() === deck.id" aria-label="Deck options"
+                  [class.is-open]="menuOpen() === deck.id" [attr.aria-label]="'Options for ' + deck.name" [attr.aria-expanded]="menuOpen() === deck.id"
                   [disabled]="deletingId() === deck.id">
             @if (deletingId() === deck.id) {
               <span class="spinner" style="width:15px;height:15px;border-width:2px"></span>
@@ -110,9 +135,8 @@
 
 <!-- create deck modal -->
 @if (modalOpen()) {
-  <div class="modal-scrim" (click)="modalOpen.set(false)">
+  <div class="modal-scrim" appDialogFocus aria-label="Create a deck" (dialogDismiss)="modalOpen.set(false)" (click)="modalOpen.set(false)">
     <div class="modal rise" (click)="$event.stopPropagation()">
-      <span class="kicker">New deck</span>
       <h2 class="modal__title">Create a deck</h2>
 
       <div class="field" style="margin-top:18px">

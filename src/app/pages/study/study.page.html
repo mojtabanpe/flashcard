@@ -1,13 +1,18 @@
 <div class="study">
   @if (loading()) {
     <div class="center-screen"><div class="spinner"></div></div>
+  } @else if (loadError()) {
+    <div class="finish"><h1>Review could not load</h1><p class="finish__sub" role="alert">{{ loadError() }}</p>
+      <div class="finish__actions"><button class="btn btn--accent" (click)="retry()">Try again</button>
+        <a class="btn" [routerLink]="['/deck', id()]">Back to deck</a></div>
+    </div>
   } @else {
     <!-- top bar: progress + exit -->
     <div class="study__bar">
       <a class="btn btn--ghost btn--sm" [routerLink]="['/deck', id()]">
         <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
              stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-        Exit
+        Back to deck
       </a>
       @if (current(); as card) {
         <button class="btn btn--ghost btn--sm btn--danger study__delete" (click)="confirmDelete.set(true)"
@@ -17,30 +22,29 @@
             <polyline points="3 6 5 6 21 6" />
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
           </svg>
-          <span class="study__delete-label">Delete</span>
+
         </button>
       }
       <div class="study__progress">
-        <div class="study__progress-bar"><span [style.width.%]="progress()"></span></div>
+        <div class="study__progress-bar" role="progressbar" aria-label="Cards completed" [attr.aria-valuenow]="completed()" aria-valuemin="0" [attr.aria-valuemax]="startCount()"><span [style.width.%]="progress()"></span></div>
       </div>
       <span class="study__count">
-        {{ reviewed() }} / {{ startCount() }}
+        {{ completed() }} / {{ startCount() }}
       </span>
     </div>
 
-    <div class="study__deckname kicker">
+    <h1 class="study__deckname">
       {{ deck()?.name }}
-    </div>
+    </h1>
 
     @if (done()) {
       @if (reviewed() === 0) {
         <!-- nothing was due -->
         <div class="finish rise">
           <div class="finish__seal">✓</div>
-          <h1 class="finish__title">All caught up</h1>
+          <h2 class="finish__title">All caught up</h2>
           <p class="finish__sub">
-            No cards are due for review in this deck right now. Come back later —
-            or study again and cards you miss will return sooner.
+            No cards are due for review in this deck right now. Come back when your next cards are due.
           </p>
           <div class="finish__actions">
             <a class="btn btn--accent btn--lg" [routerLink]="['/deck', id()]">Back to deck</a>
@@ -51,9 +55,9 @@
         <!-- session complete -->
         <div class="finish rise">
           <div class="finish__seal">✓</div>
-          <h1 class="finish__title">Session complete</h1>
+          <h2 class="finish__title">Session complete</h2>
           <p class="finish__sub">
-            You reviewed {{ reviewed() }} card{{ reviewed() === 1 ? '' : 's' }}. Beautifully done.
+            You reviewed {{ reviewed() }} card{{ reviewed() === 1 ? '' : 's' }}. Your progress is saved.
           </p>
           <div class="finish__actions">
             <a class="btn btn--accent btn--lg" [routerLink]="['/deck', id()]">Back to deck</a>
@@ -62,63 +66,68 @@
         </div>
       }
     } @else if (current(); as card) {
-      <!-- flip card -->
       <div class="stage">
-        <div class="flip-wrap">
-          <button class="flip__speaker" (click)="speak()"
-                  aria-label="Play pronunciation">
-            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                 stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-              <path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a9 9 0 0 1 0 14" />
-            </svg>
-          </button>
-          <button class="flip" [class.is-flipped]="flipped()" (click)="toggle()"
-                  [attr.aria-label]="flipped() ? 'Show card again' : 'Reveal answer'">
-            <div class="flip__inner">
-              <div class="flip__face flip__face--front">
-                <span class="flip__tag">Question</span>
-                <div class="flip__body">
-                  <div class="flip__text md" [innerHTML]="card.front | markdown"></div>
-                </div>
-                <span class="flip__hint">click or press space to flip</span>
-              </div>
-              <div class="flip__face flip__face--back">
-                @let parts = backParts(card.back);
-                <span class="flip__tag">Answer</span>
-                @if (parts.unit) {
-                  <span class="flip__unit">{{ parts.unit }}</span>
-                }
-                <div class="flip__body">
-                  <div class="flip__text md" [innerHTML]="parts.body | markdown"></div>
-                </div>
-              </div>
+        @let parts = backParts(card);
+        <article class="study-card" [class.is-answer]="flipped()" aria-label="Flashcard">
+          <header class="study-card__header">
+            <span class="study-card__side">{{ flipped() ? 'Meaning' : 'Word' }}</span>
+            @if (parts.unit) { <span class="study-card__unit">{{ parts.unit }}</span> }
+            <div class="study-card__actions">
+              @if (flipped() && card.examples) {
+                <button class="card-control" (click)="examplesOpen.set(!examplesOpen())" [disabled]="busy()"
+                        [attr.aria-label]="examplesOpen() ? '! Hide examples' : '! Show examples'"
+                        [attr.aria-expanded]="examplesOpen()" aria-controls="examples-dialog" aria-haspopup="dialog" title="Examples">!</button>
+              }
+              <button class="card-control" (click)="speak()" aria-label="Play pronunciation" title="Play pronunciation">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+                  <path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a9 9 0 0 1 0 14" />
+                </svg>
+              </button>
             </div>
-          </button>
-        </div>
-      </div>
+          </header>
+          <div class="study-card__body" data-card-content tabindex="0" role="region" aria-label="Card content">
+            @if (!flipped()) {
+              <div class="study-card__word md" [innerHTML]="card.front | markdown"></div>
+            } @else {
+              <div class="study-card__definition md" [innerHTML]="parts.body | markdown"></div>
 
-      <!-- rating controls -->
-      <div class="rate" [class.is-visible]="flipped()">
-        @for (r of ratings; track r.rating) {
-          <button class="rate__btn" [class]="'rate__btn--' + r.rating"
-                  (click)="rate(r.rating)" [disabled]="busy()">
-            <span class="rate__label">{{ r.label }}</span>
-            <span class="rate__interval">{{ previewFor(r.rating) }}</span>
-            <span class="rate__key">{{ r.key }}</span>
-          </button>
+            }
+          </div>
+          <footer class="study-card__footer">
+            @if (!flipped()) {
+              <button class="btn btn--accent" (click)="toggle()" aria-label="Reveal meaning">Reveal meaning <kbd>Space</kbd></button>
+            } @else {
+              <button class="text-button" (click)="toggle()" [disabled]="busy()">Show word</button>
+              <span>How well did you remember?</span>
+            }
+          </footer>
+        </article>
+      </div>
+      <div class="review-controls">
+        @if (flipped()) {
+          <div class="rate">
+            @for (r of ratings; track r.rating) {
+              <button class="rate__btn" [class]="'rate__btn--' + r.rating" (click)="rate(r.rating)" [disabled]="busy()">
+                <span class="rate__label">{{ r.label }}</span>
+                <span class="rate__interval">{{ previewFor(r.rating) }}</span>
+                <kbd class="rate__key">{{ r.key }}</kbd>
+              </button>
+            }
+          </div>
+          <p class="study-guidance">{{ busy() ? 'Saving your review…' : 'Choose a rating or press 1–4.' }}</p>
+        } @else {
+          <p class="study-guidance">Think of the meaning before revealing it.</p>
         }
       </div>
-      @@if (!flipped()) {
-        <p class="rate__placeholder">Reveal the answer to grade your recall.</p>
-      }
     }
   }
 </div>
 
 <!-- delete confirmation modal -->
 @if (confirmDelete()) {
-  <div class="modal-scrim" (click)="confirmDelete.set(false)">
+  <div class="modal-scrim" appDialogFocus aria-label="Delete card" (dialogDismiss)="confirmDelete.set(false)" (click)="confirmDelete.set(false)">
     <div class="modal rise" (click)="$event.stopPropagation()">
       <span class="kicker">Delete card</span>
       <h2 class="modal__title">Delete this card?</h2>
@@ -133,4 +142,11 @@
       </div>
     </div>
   </div>
+}
+
+@if (examplesOpen()) {
+  @if (current(); as card) {
+    <app-examples-dialog [word]="card.front" [examples]="card.examples" [unit]="backParts(card).unit"
+                         (dismissed)="examplesOpen.set(false)" />
+  }
 }

@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Recall SQLite backup
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+RandomizedDelaySec=15m
+Persistent=true
+Unit=recall-backup.service
+
+[Install]
+WantedBy=timers.target

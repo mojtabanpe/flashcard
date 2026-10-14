@@ -9,7 +9,13 @@ export interface UnitSplit {
 }
 
 export function splitUnit(back: string): UnitSplit {
-  const match = back.match(/^U\d+\s+/);
+  const match = back.match(/^u\d+\s+/i);
   if (!match) return { unit: null, body: back };
-  return { unit: match[0].trim(), body: back.slice(match[0].length) };
+  return { unit: match[0].trim().toLowerCase(), body: back.slice(match[0].length) };
+}
+
+/** Prefer explicit metadata; continue to support older cards with a leading unit. */
+export function cardParts(card: { back: string; unit?: string }): UnitSplit {
+  const legacy = splitUnit(card.back);
+  return { unit: card.unit?.toLowerCase() || legacy.unit, body: legacy.body };
 }

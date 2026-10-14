@@ -1,4 +1,5 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DialogFocus } from '../../core/dialog-focus';
+import { HostListener, Component, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DecksService } from '../../core/decks.service';
@@ -7,7 +8,7 @@ import { DECK_COLORS, DeckColor, DeckWithStats } from '../../core/models';
 
 @Component({
   selector: 'app-decks',
-  imports: [FormsModule, RouterLink],
+  imports: [DialogFocus, FormsModule, RouterLink],
   templateUrl: './decks.page.html',
   styleUrl: './decks.page.scss',
 })
@@ -21,6 +22,15 @@ export class DecksPage {
 
   protected readonly totalDue = computed(() => this.decks().reduce((n, d) => n + d.due, 0));
   protected readonly totalCards = computed(() => this.decks().reduce((n, d) => n + d.total, 0));
+
+  protected readonly search = signal('');
+  protected readonly filteredDecks = computed(() => this.decks().filter(deck =>
+    (deck.name + ' ' + deck.description).toLowerCase().includes(this.search().trim().toLowerCase())));
+  protected readonly recommended = computed(() => [...this.decks()].filter(deck => deck.due > 0)
+    .sort((a, b) => a.due - b.due)[0] ?? null);
+
+  @HostListener('window:keydown.escape')
+  protected dismissMenu() { this.menuOpen.set(null); }
 
   // per-card options menu (holds the open deck's id, or null)
   protected readonly menuOpen = signal<string | null>(null);
@@ -92,7 +102,7 @@ export class DecksPage {
     try {
       await this.decksSvc.create(name, this.description().trim(), this.color());
       this.modalOpen.set(false);
-      this.toast.show('Deck created ✦');
+      this.toast.show('Deck created');
       await this.load();
     } catch (e: any) {
       this.toast.error(e?.message ?? 'Could not create deck.');

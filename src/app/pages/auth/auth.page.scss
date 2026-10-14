@@ -17,9 +17,7 @@
   display: flex;
   flex-direction: column;
   color: var(--on-accent);
-  background:
-    radial-gradient(130% 110% at 0% 0%, #4d94ff, transparent 60%),
-    linear-gradient(160deg, var(--accent) 0%, var(--accent-deep) 100%);
+  background: var(--accent-deep);
 }
 /* faint ledger lines for the "paper" texture on the accent panel */
 .auth__aside::before {
@@ -44,7 +42,7 @@
 .auth__headline {
   font-size: clamp(2.6rem, 4.6vw, 4rem);
   font-weight: 600;
-  line-height: 0.98;
+  line-height: 1.1;
   letter-spacing: -0.03em;
 }
 .auth__headline em {
@@ -79,12 +77,12 @@
 }
 .cardstack__c--3 {
   transform: rotate(-9deg) translate(8px, 6px);
-  background: #e3f2fd;
+  background: var(--paper-2);
   opacity: 0.85;
 }
 .cardstack__c--2 {
   transform: rotate(5deg) translate(34px, -4px);
-  background: #f6efe3;
+  background: var(--accent-tint);
 }
 .cardstack__c--1 {
   transform: rotate(-3deg);
@@ -127,7 +125,8 @@
 .auth__link {
   border: none;
   background: none;
-  padding: 0;
+  padding: 12px 8px;
+  min-height: 44px;
   cursor: pointer;
   color: var(--accent);
   font-weight: 600;
@@ -140,3 +139,5 @@
   .auth { grid-template-columns: 1fr; }
   .auth__aside { display: none; }
 }
+
+.auth__aside-top .kicker { color: var(--on-accent); opacity: .85; }

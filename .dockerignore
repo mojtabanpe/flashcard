@@ -1,0 +1,15 @@
+.git
+.github
+node_modules
+server/node_modules
+dist
+server/dist
+.angular
+.env
+.env.*
+**/.env
+**/.env.*
+data
+backups
+*.sqlite*
+outputs

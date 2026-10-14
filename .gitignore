@@ -42,3 +42,18 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Private database and migration exports
+/data/
+/backups/
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+/server/dist/
+
+# Local deployment configuration and credentials
+.env
+.env.*
+!.env.example
+server/.env
+/server/node_modules/

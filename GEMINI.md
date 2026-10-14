@@ -1,73 +1,28 @@
 # Recall — Agent Instructions & Project Context
 
-You are pair programming on **Recall**, a modern spaced-repetition flashcard web application built with **Angular 22** and **Supabase**.
+Recall is an Angular 22 web application with a NestJS API and SQLite.
 
----
+## Architecture
 
-## 1. Project Overview & Architecture
+- Angular: standalone components, zoneless change detection, signals.
+- NestJS: feature modules in server/src/auth, decks, cards and database.
+- SQLite: node:sqlite, owner-scoped parameterized queries and foreign keys.
+- Shared types and pure SM-2/Lightner calculations: shared/models.ts and shared/srs.ts.
+- Styles: existing SCSS design tokens and keyboard interactions.
 
-- **Framework**: Angular 22 (Standalone components, Zoneless change detection, Angular Signals).
-- **Backend & Database**: Supabase (PostgreSQL, Supabase Auth, Row-Level Security / RLS).
-- **Core Algorithm**: SM-2 Spaced Repetition + Lightner method leech detection ([src/app/core/srs.ts](file:///Users/mojtabanpe/Projects/personal/flashcard/src/app/core/srs.ts)).
-- **Styles**: SCSS global design system with custom CSS variables ([src/styles.scss](file:///Users/mojtabanpe/Projects/personal/flashcard/src/styles.scss)), bold typography (Fraunces, Archivo, DM Mono), and 3D card flip transitions.
-- **Testing**: Vitest (`npm test`).
-- **Dev Server**: `npm start` (Runs on `http://localhost:4333`).
+## Development standards
 
----
+- Use inject() and signals in Angular; API requests belong in ApiService.
+- Use typed DTOs, guards, services and thin controllers in NestJS.
+- Follow .agents/rules/sqlite-security.md for authorization and storage.
+- The browser never accesses SQLite directly. Review updates are calculated and committed on the server.
+- Preserve existing UI, SRS behavior, IDs and timestamps when changing persistence.
+- Do not commit database files, personal data, password hashes or migration exports.
 
-## 2. Directory Structure
+## Commands
 
-```
-src/
-  app/
-    core/            # Supabase client, Auth, Deck & Card services, SRS logic, Guards, Models
-    pages/
-      auth/          # Sign-in and sign-up flows
-      decks/         # Deck dashboard & creation modal
-      deck-detail/   # Card management & deck settings
-      study/         # 3D interactive flashcard review session
-    app.ts           # Shell component with navigation bar & toast notifications
-  styles.scss        # Design tokens, global resets, typography, and utility classes
-```
-
----
-
-## 3. Key Development Standards
-
-1. **Angular 22 Conventions**:
-   - Always use **standalone components** and `inject()` for dependency injection.
-   - Prefer **Angular Signals** (`signal()`, `computed()`, `effect()`) for reactive state over RxJS Subjects when managing local component state.
-   - Maintain zoneless compatibility (avoid reliance on `NgZone` or manual change detection triggers).
-
-2. **Supabase & RLS Security**:
-   - All client queries must respect Row-Level Security (`auth.uid() = user_id`).
-   - Use [src/app/core/supabase.service.ts](file:///Users/mojtabanpe/Projects/personal/flashcard/src/app/core/supabase.service.ts) for client access.
-   - Do not expose secret service role keys in frontend code; use the publishable key in `src/environments/environment.ts`.
-
-3. **Spaced Repetition Logic**:
-   - Keep SM-2 calculations in [src/app/core/srs.ts](file:///Users/mojtabanpe/Projects/personal/flashcard/src/app/core/srs.ts) pure and deterministic.
-   - Changes to SRS calculation formulas must be covered with unit tests.
-
-4. **Design & UX Quality**:
-   - Adhere to design tokens defined in [src/styles.scss](file:///Users/mojtabanpe/Projects/personal/flashcard/src/styles.scss).
-   - Maintain fluid micro-interactions, responsive layouts, keyboard accessibility (e.g. `Space` to flip, `1-4` to grade), and clean dark/light contrast.
-
----
-
-## 4. Leveraging Available Skills & Tools
-
-When working on this project, actively invoke and adhere to the relevant available skills:
-
-- **`modern-web-guidance`**: Execute for frontend/CSS/HTML architecture, modern CSS features (`:has()`, container queries, backdrop filters), and performance optimizations.
-- **`a11y-debugging`**: Use to test and verify accessibility, ARIA live regions (especially during flashcard study reviews), keyboard navigation, and color contrast.
-- **`chrome-devtools`**: Use for inspecting network requests (Supabase API calls), troubleshooting DOM state, and debugging runtime behavior.
-- **`debug-optimize-lcp` & `memory-leak-debugging`**: Use when optimizing load times, rendering performance, or auditing memory usage during long study sessions.
-- **`agy-customizations`**: Use when maintaining, updating, or expanding workspace rules, skills, and configuration files.
-
----
-
-## 5. Standard Commands
-
-- Run dev server: `npm start`
-- Run test suite: `npm test`
-- Build production bundle: `npm run build`
+- pnpm start: Angular on localhost:4333, proxying /api to NestJS.
+- pnpm api:build / pnpm api:start: compile and run the API.
+- pnpm build: production frontend.
+- pnpm api:test: API, migration and shared SRS tests.
+- pnpm db:backup: consistent SQLite backup.

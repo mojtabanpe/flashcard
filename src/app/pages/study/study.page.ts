@@ -1,3 +1,5 @@
+import { ExamplesDialog } from '../../core/examples-dialog';
+import { DialogFocus } from '../../core/dialog-focus';
 import { Component, HostListener, computed, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { DecksService } from '../../core/decks.service';
@@ -5,7 +7,7 @@ import { CardsService } from '../../core/cards.service';
 import { ToastService } from '../../core/toast.service';
 import { Card, Deck, Rating } from '../../core/models';
 import { previewInterval } from '../../core/srs';
-import { splitUnit } from '../../core/format';
+import { cardParts } from '../../core/format';
 import { TtsService } from '../../core/tts.service';
 import { MarkdownPipe } from '../../core/markdown.pipe';
 
@@ -17,7 +19,7 @@ interface RatingButton {
 
 @Component({
   selector: 'app-study',
-  imports: [RouterLink, MarkdownPipe],
+  imports: [ExamplesDialog, DialogFocus, RouterLink, MarkdownPipe],
   templateUrl: './study.page.html',
   styleUrl: './study.page.scss',
 })
@@ -32,7 +34,9 @@ export class StudyPage {
   protected readonly deck = signal<Deck | null>(null);
   protected readonly queue = signal<Card[]>([]);
   protected readonly loading = signal(true);
+  protected readonly loadError = signal('');
   protected readonly flipped = signal(false);
+  protected readonly examplesOpen = signal(false);
   protected readonly busy = signal(false);
 
   protected readonly reviewed = signal(0);
@@ -40,11 +44,12 @@ export class StudyPage {
   protected readonly confirmDelete = signal(false);
 
   protected readonly current = computed(() => this.queue()[0] ?? null);
-  protected readonly done = computed(() => !this.loading() && this.queue().length === 0);
+  protected readonly done = computed(() => !this.loading() && !this.loadError() && this.queue().length === 0);
+  protected readonly completed = computed(() => Math.max(0, this.startCount() - this.queue().length));
   protected readonly progress = computed(() => {
     const total = this.startCount();
     if (!total) return 0;
-    return Math.min(100, Math.round((this.reviewed() / total) * 100));
+    return Math.min(100, Math.round((this.completed() / total) * 100));
   });
 
   protected readonly ratings: RatingButton[] = [
@@ -58,8 +63,11 @@ export class StudyPage {
     queueMicrotask(() => this.load());
   }
 
+  protected retry() { void this.load(); }
+
   private async load() {
     this.loading.set(true);
+    this.loadError.set('');
     try {
       const [deck, due] = await Promise.all([
         this.decksSvc.get(this.id()),
@@ -69,7 +77,7 @@ export class StudyPage {
       this.queue.set(due);
       this.startCount.set(due.length);
     } catch (e: any) {
-      this.toast.error(e?.message ?? 'Could not start studying.');
+      this.loadError.set(e?.message ?? 'Could not load your review. Try again.');
     } finally {
       this.loading.set(false);
     }
@@ -77,6 +85,8 @@ export class StudyPage {
 
   /** Flip the card — reveal the answer from the front, or hide it again from the back. */
   protected toggle() {
+    if (this.busy()) return;
+    this.examplesOpen.set(false);
     this.flipped.update((f) => !f);
   }
 
@@ -86,17 +96,18 @@ export class StudyPage {
   }
 
   /** The back of a card, split into its unit subtitle (U1, …) and the body. */
-  protected backParts(back: string) {
-    return splitUnit(back);
+  protected backParts(card: Card) {
+    return cardParts(card);
   }
 
   protected async rate(rating: Rating) {
     const card = this.current();
-    if (!card || this.busy()) return;
+    if (!card || this.busy() || !this.flipped()) return;
     this.busy.set(true);
 
     try {
       const updated = await this.cardsSvc.review(card, rating);
+      this.examplesOpen.set(false);
       this.reviewed.update((n) => n + 1);
 
       // A leech that just crossed the threshold is suspended — it leaves the
@@ -126,7 +137,7 @@ export class StudyPage {
     const card = this.current();
     if (!card) return;
     const text = this.flipped()
-      ? splitUnit(card.back).body
+      ? cardParts(card).body
       : card.front;
     this.tts.speak(text);
   }
@@ -143,6 +154,7 @@ export class StudyPage {
       this.reviewed.update((n) => n + 1);
       this.flipped.set(false);
       this.confirmDelete.set(false);
+      this.examplesOpen.set(false);
       this.toast.show('Card deleted');
     } catch (e: any) {
       this.toast.error(e?.message ?? 'Could not delete card.');
@@ -154,10 +166,13 @@ export class StudyPage {
   @HostListener('window:keydown', ['$event'])
   protected onKey(e: KeyboardEvent) {
     if (this.done() || this.loading()) return;
-    const tag = (e.target as HTMLElement)?.tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+    const target = e.target as HTMLElement;
+    if (this.confirmDelete() || this.examplesOpen() || this.busy() ||
+        target?.closest('input, textarea, select, [contenteditable="true"]')) return;
 
     if (e.code === 'Space' || e.code === 'Enter') {
+      // Let native buttons activate themselves, including the examples control.
+      if (target?.closest('button, a, [data-card-content]')) return;
       e.preventDefault();
       this.toggle();
       return;

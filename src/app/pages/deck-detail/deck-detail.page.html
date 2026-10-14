@@ -16,7 +16,7 @@
           <span class="kicker">
             {{ cards().length }} card{{ cards().length === 1 ? '' : 's' }}
             @if (dueCount() > 0) { · {{ dueCount() }} due }
-            @if (suspendedCards().length > 0) { · {{ suspendedCards().length }} suspended }
+            @if (pausedCount() > 0) { · {{ pausedCount() }} paused }
           </span>
         </div>
         <h1 class="dd-title">{{ d.name }}</h1>
@@ -47,8 +47,8 @@
     </header>
 
     <!-- quick add composer -->
-    <section class="composer panel">
-      <span class="kicker">Add a card</span>
+    <details class="composer panel">
+      <summary>Add a card <span>Word, definition and optional examples</span></summary>
       <div class="composer__grid">
         <div class="field">
           <label for="front">Front</label>
@@ -62,6 +62,18 @@
                     [ngModel]="back()" (ngModelChange)="back.set($event)"></textarea>
         </div>
       </div>
+      <div class="composer__metadata">
+        <div class="field">
+          <label for="unit">Unit (optional)</label>
+          <input id="unit" class="input" placeholder="u19" [ngModel]="unit()" (ngModelChange)="unit.set($event)" />
+        </div>
+        <div class="field">
+          <label for="examples">Examples (optional)</label>
+          <textarea id="examples" class="textarea" rows="2" placeholder="Shown when you press !"
+                    [ngModel]="examples()" (ngModelChange)="examples.set($event)"></textarea>
+        </div>
+      </div>
+      @if (composerError()) { <p class="form-error" role="alert">{{ composerError() }}</p> }
       <div class="composer__foot">
         <span class="composer__hint">Tip: keep each card to a single idea.</span>
         <button class="btn btn--accent" (click)="addCard()" [disabled]="adding()">
@@ -70,7 +82,7 @@
           } @else { Add card }
         </button>
       </div>
-    </section>
+    </details>
 
     <!-- card list -->
     @if (cards().length === 0) {
@@ -79,18 +91,39 @@
       </div>
     } @else {
       <div class="cards-head">
-        <span class="kicker">Cards · {{ activeCards().length }}</span>
+        <h2>Vocabulary <span>{{ cards().length }}</span></h2>
+        <p>Find a word, check its meaning or review its examples.</p>
       </div>
+      <div class="card-tools">
+        <div class="field card-tools__search">
+          <label for="card-search">Search cards</label>
+          <input id="card-search" type="search" class="input" placeholder="Word, definition or example…"
+                 [ngModel]="search()" (ngModelChange)="setSearch($event)" />
+        </div>
+        <div class="field">
+          <label for="unit-filter">Lesson</label>
+          <select id="unit-filter" class="input" [ngModel]="selectedUnit()" (ngModelChange)="setUnit($event)">
+            <option value="">All lessons</option>
+            @for (u of units(); track u) { <option [value]="u">{{ u }}</option> }
+          </select>
+        </div>
+      </div>
+      <p class="results-count" role="status">{{ activeCards().length }} matching card{{ activeCards().length === 1 ? '' : 's' }}
+        @if (search() || selectedUnit()) { <button class="text-button" (click)="clearFilters()">Clear filters</button> }
+      </p>
+      @if (!activeCards().length) {
+        <div class="empty"><h3>No matching cards</h3><p>Try a different word or lesson.</p></div>
+      }
       <ul class="card-list">
-        @for (card of activeCards(); track card.id; let i = $index) {
-          <li class="card-row rise" [style.animation-delay.ms]="i * 30">
+        @for (card of visibleCards(); track card.id; let i = $index) {
+          <li class="card-row">
             <div class="card-row__side">
               <span class="card-row__tag">Q</span>
               <div class="card-row__text md" [innerHTML]="card.front | markdown"></div>
             </div>
             <div class="card-row__side card-row__side--back">
               <span class="card-row__tag">A</span>
-              @let spl = backPartsOf(card.back);
+              @let spl = backPartsOf(card);
               <div class="card-row__back">
                 @if (spl.unit) {
                   <span class="card-row__unit">{{ spl.unit }}</span>
@@ -122,28 +155,32 @@
           </li>
         }
       </ul>
+      @if (visibleCards().length < activeCards().length) {
+        <div class="load-more"><p>Showing {{ visibleCards().length }} of {{ activeCards().length }} cards</p>
+          <button class="btn" (click)="showMore()">Show more cards</button>
+        </div>
+      }
     }
 
     <!-- suspended leeches (Lightner) -->
     @if (suspendedCards().length > 0) {
       <div class="leech-section">
         <div class="cards-head">
-          <span class="kicker">Suspended leeches · {{ suspendedCards().length }}</span>
+          <span class="kicker">Paused cards · {{ suspendedCards().length }}</span>
         </div>
         <p class="leech-note">
-          These cards kept failing, so the Lightner method parked them. Restore one
-          to give it a fresh start, or delete cards you've suspended twice.
+          These cards are out of the review queue. Restore a card when you are ready to practise it again.
         </p>
         <ul class="card-list">
           @for (card of suspendedCards(); track card.id; let i = $index) {
-            <li class="card-row leech-row rise" [style.animation-delay.ms]="i * 30">
+            <li class="card-row leech-row">
               <div class="card-row__side">
                 <span class="card-row__tag">Q</span>
                 <div class="card-row__text md" [innerHTML]="card.front | markdown"></div>
               </div>
               <div class="card-row__side card-row__side--back">
                 <span class="card-row__tag">A</span>
-                @let spl = backPartsOf(card.back);
+                @let spl = backPartsOf(card);
                 <div class="card-row__back">
                   @if (spl.unit) {
                     <span class="card-row__unit">{{ spl.unit }}</span>
@@ -181,54 +218,62 @@
 
 <!-- show / preview card modal -->
 @if (previewCard(); as pc) {
-  <div class="modal-scrim" (click)="previewCard.set(null)">
+  <div class="modal-scrim" appDialogFocus aria-label="Card preview" (dialogDismiss)="previewCard.set(null)" (click)="previewCard.set(null)">
     <div class="preview rise" (click)="$event.stopPropagation()">
-      <button class="preview__flip" [class.is-flipped]="previewFlipped()"
-              (click)="previewFlipped.set(!previewFlipped())"
-              [attr.aria-label]="previewFlipped() ? 'Show question' : 'Show answer'">
-        <div class="preview__inner">
-          <div class="preview__face">
-            <button class="preview__speaker" (click)="$event.stopPropagation(); speak(pc.front)"
-                    aria-label="Play pronunciation of the question">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                <path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a9 9 0 0 1 0 14" />
-              </svg>
-            </button>
-            <span class="preview__tag">Question</span>
-            <div class="preview__text md" [innerHTML]="pc.front | markdown"></div>
-            <span class="preview__hint">click to flip</span>
-          </div>
-          <div class="preview__face preview__face--back">
-            @let spl = backPartsOf(pc.back);
-            <button class="preview__speaker" (click)="$event.stopPropagation(); speak(spl.body)"
-                    aria-label="Play pronunciation of the answer">
-              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                   stroke-linecap="round" stroke-linejoin="round">
-                <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
-                <path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a9 9 0 0 1 0 14" />
-              </svg>
-            </button>
-            <span class="preview__tag">Answer</span>
-            @if (spl.unit) {
-              <span class="preview__unit">{{ spl.unit }}</span>
-            }
-            <div class="preview__text md" [innerHTML]="spl.body | markdown"></div>
-            <span class="preview__hint">click to flip</span>
+      <div class="preview__wrap">
+        @let spl = backPartsOf(pc);
+        <div class="preview__toolbar">
+          <span class="preview__tag">{{ previewFlipped() ? 'Meaning' : 'Word' }}</span>
+          @if (spl.unit) { <span class="preview__unit">{{ spl.unit }}</span> }
+          <div class="preview__actions">
+        <button type="button" class="preview__speaker" (click)="speak(previewFlipped() ? spl.body : pc.front)"
+                aria-label="Play pronunciation">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M15.5 8.5a5 5 0 0 1 0 7" /><path d="M19 5a9 9 0 0 1 0 14" />
+          </svg>
+        </button>
+        @if (previewFlipped() && pc.examples) {
+          <button type="button" class="preview__examples" (click)="previewExamplesOpen.set(!previewExamplesOpen())"
+                  aria-label="! Show examples" [attr.aria-expanded]="previewExamplesOpen()"
+                  aria-controls="examples-dialog" aria-haspopup="dialog" title="Examples">!</button>
+        }
           </div>
         </div>
-      </button>
+        <button class="preview__flip" [class.is-flipped]="previewFlipped()" (click)="togglePreview()"
+                [attr.aria-label]="previewFlipped() ? 'Show question' : 'Show answer'">
+          <div class="preview__inner">
+            <div class="preview__face" [attr.aria-hidden]="previewFlipped()">
+              <div class="preview__text md" [innerHTML]="pc.front | markdown"></div>
+              <span class="preview__hint">click to flip</span>
+            </div>
+            <div class="preview__face preview__face--back" [attr.aria-hidden]="!previewFlipped()">
+              <div class="preview__text">
+                <div class="md" [innerHTML]="spl.body | markdown"></div>
+
+              </div>
+              <span class="preview__hint">click to flip</span>
+            </div>
+          </div>
+        </button>
+      </div>
       <button class="btn btn--sm preview__close" (click)="previewCard.set(null)">Close</button>
     </div>
   </div>
 }
 
+@if (previewExamplesOpen()) {
+  @if (previewCard(); as card) {
+    <app-examples-dialog [word]="card.front" [examples]="card.examples" [unit]="backPartsOf(card).unit"
+                         (dismissed)="previewExamplesOpen.set(false)" />
+  }
+}
+
 <!-- edit card modal -->
 @if (editCard(); as ec) {
-  <div class="modal-scrim" (click)="editCard.set(null)">
+  <div class="modal-scrim" appDialogFocus aria-label="Edit card" (dialogDismiss)="editCard.set(null)" (click)="editCard.set(null)">
     <div class="modal rise" (click)="$event.stopPropagation()">
-      <span class="kicker">Edit card</span>
       <h2 class="modal__title">Edit card</h2>
       <div class="field" style="margin-top:18px">
         <label for="ef">Front</label>
@@ -240,9 +285,18 @@
         <textarea id="eb" class="textarea" rows="3"
                   [ngModel]="editBack()" (ngModelChange)="editBack.set($event)"></textarea>
       </div>
+      <div class="field" style="margin-top:16px">
+        <label for="eu">Unit (optional)</label>
+        <input id="eu" class="input" placeholder="u19" [ngModel]="editUnit()" (ngModelChange)="editUnit.set($event)" />
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label for="ee">Examples (optional)</label>
+        <textarea id="ee" class="textarea" rows="3" [ngModel]="editExamples()" (ngModelChange)="editExamples.set($event)"></textarea>
+      </div>
+      @if (editError()) { <p class="form-error" role="alert">{{ editError() }}</p> }
       <div class="modal__actions">
-        <button class="btn btn--ghost" (click)="editCard.set(null)">Cancel</button>
-        <button class="btn btn--accent" (click)="saveCard()">Save</button>
+        <button class="btn btn--ghost" [disabled]="savingCard()" (click)="editCard.set(null)">Cancel</button>
+        <button class="btn btn--accent" (click)="saveCard()" [disabled]="savingCard()">{{ savingCard() ? 'Saving…' : 'Save changes' }}</button>
       </div>
     </div>
   </div>
@@ -250,9 +304,8 @@
 
 <!-- edit deck modal -->
 @if (deckModal()) {
-  <div class="modal-scrim" (click)="deckModal.set(false)">
+  <div class="modal-scrim" appDialogFocus aria-label="Edit deck" (dialogDismiss)="deckModal.set(false)" (click)="deckModal.set(false)">
     <div class="modal rise" (click)="$event.stopPropagation()">
-      <span class="kicker">Edit deck</span>
       <h2 class="modal__title">Deck settings</h2>
       <div class="field" style="margin-top:18px">
         <label for="dn">Name</label>

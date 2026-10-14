@@ -1,0 +1,55 @@
+name: recall
+services:
+  app:
+    image: flashcard:${RELEASE:?Set RELEASE to a tested Git commit}
+    network_mode: host
+    restart: unless-stopped
+    env_file: ${RECALL_ENV_FILE:-/opt/recall/shared/.env}
+    environment:
+      NODE_ENV: production
+      HOST: 127.0.0.1
+      PORT: 4310
+      APP_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN}
+      DATABASE_PATH: /app/data/recall.sqlite
+      FRONTEND_PATH: /app/public
+      REDIS_URL: redis://127.0.0.1:16379
+      TTS_CACHE_TTL_SECONDS: ${TTS_CACHE_TTL_SECONDS:-86400}
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - /opt/recall/data:/app/data
+      - /opt/recall/backups:/app/backups
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+  redis:
+    image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+    restart: unless-stopped
+    command:
+      [
+        redis-server,
+        --appendonly,
+        'yes',
+        --appendfsync,
+        everysec,
+        --maxmemory,
+        256mb,
+        --maxmemory-policy,
+        noeviction,
+      ]
+    ports:
+      - '127.0.0.1:16379:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    security_opt:
+      - no-new-privileges:true
+volumes:
+  redis-data:

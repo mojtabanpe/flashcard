@@ -1,3 +1,6 @@
+import { ExamplesDialog } from '../../core/examples-dialog';
+import { matchesCard } from '../../core/card-search';
+import { DialogFocus } from '../../core/dialog-focus';
 import { Component, computed, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -6,13 +9,13 @@ import { CardsService } from '../../core/cards.service';
 import { ToastService } from '../../core/toast.service';
 import { Card, DECK_COLORS, Deck, DeckColor } from '../../core/models';
 import { isBeyondSalvage } from '../../core/srs';
-import { splitUnit } from '../../core/format';
+import { cardParts } from '../../core/format';
 import { TtsService } from '../../core/tts.service';
 import { MarkdownPipe } from '../../core/markdown.pipe';
 
 @Component({
   selector: 'app-deck-detail',
-  imports: [FormsModule, RouterLink, MarkdownPipe],
+  imports: [ExamplesDialog, DialogFocus, FormsModule, RouterLink, MarkdownPipe],
   templateUrl: './deck-detail.page.html',
   styleUrl: './deck-detail.page.scss',
 })
@@ -37,14 +40,26 @@ export class DeckDetailPage {
         .length,
   );
 
-  protected readonly activeCards = computed(() => this.cards().filter((c) => !c.suspended));
-  protected readonly suspendedCards = computed(() => this.cards().filter((c) => c.suspended));
+  protected readonly search = signal('');
+  protected readonly selectedUnit = signal('');
+  protected readonly visibleCount = signal(30);
+  protected readonly units = computed(() => [...new Set(this.cards().map(card => cardParts(card).unit).filter((unit): unit is string => !!unit))]
+    .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1))));
+  protected readonly activeCards = computed(() => this.cards().filter(card => !card.suspended && matchesCard(card, this.search(), this.selectedUnit())));
+  protected readonly suspendedCards = computed(() => this.cards().filter(card => card.suspended && matchesCard(card, this.search(), this.selectedUnit())));
+  protected readonly pausedCount = computed(() => this.cards().filter(card => card.suspended).length);
+  protected readonly visibleCards = computed(() => this.activeCards().slice(0, this.visibleCount()));
+
+  protected showMore() { this.visibleCount.update(count => count + 30); }
+  protected setSearch(value: string) { this.search.set(value); this.visibleCount.set(30); }
+  protected setUnit(value: string) { this.selectedUnit.set(value); this.visibleCount.set(30); }
+  protected clearFilters() { this.setSearch(''); this.setUnit(''); }
 
   protected readonly isBeyondSalvage = isBeyondSalvage;
 
   /** Split a card's back into its unit subtitle (U1, …) and the body. */
-  protected backPartsOf(back: string) {
-    return splitUnit(back);
+  protected backPartsOf(card: Card) {
+    return cardParts(card);
   }
 
   /** Play pronunciation of a piece of card text. */
@@ -55,16 +70,24 @@ export class DeckDetailPage {
   // quick add composer
   protected readonly front = signal('');
   protected readonly back = signal('');
+  protected readonly unit = signal('');
+  protected readonly examples = signal('');
   protected readonly adding = signal(false);
+  protected readonly composerError = signal('');
+  protected readonly editError = signal('');
+  protected readonly savingCard = signal(false);
 
   // preview (show) modal
   protected readonly previewCard = signal<Card | null>(null);
   protected readonly previewFlipped = signal(false);
+  protected readonly previewExamplesOpen = signal(false);
 
   // edit-card modal
   protected readonly editCard = signal<Card | null>(null);
   protected readonly editFront = signal('');
   protected readonly editBack = signal('');
+  protected readonly editUnit = signal('');
+  protected readonly editExamples = signal('');
 
   // edit-deck modal
   protected readonly deckModal = signal(false);
@@ -100,15 +123,22 @@ export class DeckDetailPage {
     const front = this.front().trim();
     const back = this.back().trim();
     if (!front || !back) {
-      this.toast.error('Both sides of the card are required.');
+      this.composerError.set('Add a word and its definition before saving.');
       return;
     }
+    if (!/^(?:u\d+)?$/i.test(this.unit().trim())) {
+      this.composerError.set('Use a short unit label, such as u19.');
+      return;
+    }
+    this.composerError.set('');
     this.adding.set(true);
     try {
-      const card = await this.cardsSvc.create(this.id(), front, back);
+      const card = await this.cardsSvc.create(this.id(), front, back, this.unit().trim().toLowerCase(), this.examples().trim());
       this.cards.update((c) => [...c, card]);
       this.front.set('');
       this.back.set('');
+      this.unit.set('');
+      this.examples.set('');
     } catch (e: any) {
       this.toast.error(e?.message ?? 'Could not add card.');
     } finally {
@@ -118,31 +148,50 @@ export class DeckDetailPage {
 
   protected openPreview(card: Card) {
     this.previewFlipped.set(false);
+    this.previewExamplesOpen.set(false);
     this.previewCard.set(card);
   }
 
+  protected togglePreview() {
+    this.previewFlipped.update((flipped) => !flipped);
+    this.previewExamplesOpen.set(false);
+  }
+
   protected openEditCard(card: Card) {
+    this.editError.set('');
     this.editCard.set(card);
     this.editFront.set(card.front);
-    this.editBack.set(card.back);
+    this.editBack.set(cardParts(card).body);
+    this.editUnit.set(cardParts(card).unit ?? "");
+    this.editExamples.set(card.examples ?? "");
   }
 
   protected async saveCard() {
     const card = this.editCard();
-    if (!card) return;
+    if (!card || this.savingCard()) return;
     const front = this.editFront().trim();
     const back = this.editBack().trim();
     if (!front || !back) {
-      this.toast.error('Both sides of the card are required.');
+      this.editError.set('Both sides of the card are required.');
       return;
     }
+    if (!/^(?:u\d+)?$/i.test(this.editUnit().trim())) {
+      this.editError.set('Use a short unit label, such as u19.');
+      return;
+    }
+    this.editError.set('');
+    this.savingCard.set(true);
     try {
-      await this.cardsSvc.update(card.id, { front, back });
-      this.cards.update((list) => list.map((c) => (c.id === card.id ? { ...c, front, back } : c)));
+      const unit = this.editUnit().trim().toLowerCase();
+      const examples = this.editExamples().trim();
+      await this.cardsSvc.update(card.id, { front, back, unit, examples });
+      this.cards.update((list) => list.map((c) => (c.id === card.id ? { ...c, front, back, unit, examples } : c)));
       this.editCard.set(null);
       this.toast.show('Card updated');
     } catch (e: any) {
-      this.toast.error(e?.message ?? 'Could not update card.');
+      this.editError.set(e?.message ?? 'Could not update card. Try again.');
+    } finally {
+      this.savingCard.set(false);
     }
   }
 

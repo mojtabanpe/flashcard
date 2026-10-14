@@ -1,0 +1,18 @@
+<div id="examples-dialog" class="examples-overlay" appDialogFocus aria-labelledby="examples-title"
+     (dialogDismiss)="dismissed.emit()" (click)="dismissed.emit()">
+  <section class="examples-panel" (click)="$event.stopPropagation()">
+    <header class="examples-panel__header">
+      <h2 id="examples-title">Examples</h2>
+      @if (unit()) { <span class="examples-panel__unit">{{ unit() }}</span> }
+      <button type="button" class="btn btn--ghost examples-panel__close" (click)="dismissed.emit()" aria-label="Close examples">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="m6 6 12 12M18 6 6 18" />
+        </svg>
+      </button>
+    </header>
+    <div class="examples-panel__content" tabindex="0" role="region" aria-label="Example sentences">
+      <div class="examples-panel__word md" [innerHTML]="word() | markdown"></div>
+      <div class="examples-panel__sentences md" [innerHTML]="examples() | markdown"></div>
+    </div>
+  </section>
+</div>

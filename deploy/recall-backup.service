@@ -1,0 +1,9 @@
+[Unit]
+Description=Consistent SQLite backup for Recall
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c '/usr/bin/docker exec recall-app-1 node dist/server/src/backup.js /app/backups/daily-$(date -u +%%Y%%m%%dT%%H%%M%%SZ).sqlite'
+UMask=0077
