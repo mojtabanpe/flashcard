@@ -25,6 +25,8 @@
 .card-row { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 24px; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--line); }
 .card-row:last-child { border-bottom: none; }
 .card-row:hover { background: color-mix(in srgb, var(--paper) 50%, var(--card)); }
+.field__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ai-fill { padding: 4px 9px; font-size: 0.76rem; margin: -4px 0; }
 .card-row__side { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
 .card-row__tag { display: none; }
 .card-row__text { font-size: .92rem; line-height: 1.6; overflow-wrap: anywhere; }

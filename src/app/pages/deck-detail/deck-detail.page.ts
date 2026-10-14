@@ -11,6 +11,7 @@ import { Card, DECK_COLORS, Deck, DeckColor } from '../../core/models';
 import { isBeyondSalvage } from '../../core/srs';
 import { cardParts } from '../../core/format';
 import { TtsService } from '../../core/tts.service';
+import { AiService } from '../../core/ai.service';
 import { MarkdownPipe } from '../../core/markdown.pipe';
 
 @Component({
@@ -27,6 +28,7 @@ export class DeckDetailPage {
   private readonly cardsSvc = inject(CardsService);
   private readonly toast = inject(ToastService);
   private readonly tts = inject(TtsService);
+  private readonly ai = inject(AiService);
   private readonly router = inject(Router);
 
   protected readonly colors = DECK_COLORS;
@@ -76,6 +78,7 @@ export class DeckDetailPage {
   protected readonly composerError = signal('');
   protected readonly editError = signal('');
   protected readonly savingCard = signal(false);
+  protected readonly generating = signal(false);
 
   // preview (show) modal
   protected readonly previewCard = signal<Card | null>(null);
@@ -143,6 +146,24 @@ export class DeckDetailPage {
       this.toast.error(e?.message ?? 'Could not add card.');
     } finally {
       this.adding.set(false);
+    }
+  }
+
+  /** Fill the back of the quick-add composer with an AI-suggested answer. */
+  protected async fillBackWithAi() {
+    const front = this.front().trim();
+    if (!front) {
+      this.toast.error('Write the front of the card first.');
+      return;
+    }
+    this.generating.set(true);
+    try {
+      const d = this.deck();
+      this.back.set(await this.ai.suggestAnswer(front, d ? { name: d.name, description: d.description } : undefined));
+    } catch (e: any) {
+      this.toast.error(e?.message ?? 'Could not generate an answer.');
+    } finally {
+      this.generating.set(false);
     }
   }
 
