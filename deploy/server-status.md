@@ -31,3 +31,7 @@ curl -f https://poshtetgarm.ir/api/health
 ssh flashcard 'systemctl list-timers recall-backup.timer certbot.timer --no-pager'
 ssh flashcard 'systemctl start recall-backup.service'
 ```
+
+# Postgres cutover and PWA — 2026-10-14
+
+Release `423bd73d9e3414984f5cde6e24391ea1933447e6` moved production from SQLite to Postgres 16 (`recall-postgres-1`, `127.0.0.1:15432`, volume `recall_postgres-data`; the password is `POSTGRES_PASSWORD` in `/opt/recall/shared/.env`). A SQLite backup was taken first (`/opt/recall/backups/pre-423bd73…-20261014T153726Z.sqlite`), the app was stopped, and the import copied and verified 2 users, 5 sessions, 3 decks, 589 cards, 877 archive rows and the manifest. `memnpe@gmail.com` was then created as a copy of `admin@recall.com` (2 decks, 580 cards, same password hash). The app and Postgres are healthy; the live site serves the service worker and manifest, and `index.html` is not in `ngsw.json`. `recall-backup.service` now writes daily `pg_dump` files (`daily-*.dump`); the previous unit is kept at `/opt/recall/backups/recall-backup.service.sqlite-bak`. The legacy SQLite file remains in `/opt/recall/data` for rollback only and is no longer written.
