@@ -44,3 +44,16 @@
     </div>
   }
 </div>
+
+@if (confirm.request(); as req) {
+  <div class="modal-scrim" appDialogFocus [attr.aria-label]="req.title" (dialogDismiss)="confirm.answer(false)" (click)="confirm.answer(false)">
+    <div class="modal rise" (click)="$event.stopPropagation()">
+      <h2 class="modal__title">{{ req.title }}</h2>
+      <p class="confirm__message">{{ req.message }}</p>
+      <div class="modal__actions">
+        <button class="btn btn--ghost" (click)="confirm.answer(false)">Cancel</button>
+        <button class="btn" [class.btn--danger]="req.danger" [class.btn--accent]="!req.danger" (click)="confirm.answer(true)">{{ req.confirmLabel }}</button>
+      </div>
+    </div>
+  </div>
+}

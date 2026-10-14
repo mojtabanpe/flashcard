@@ -7,6 +7,7 @@ import { Router, RouterLink } from '@angular/router';
 import { DecksService } from '../../core/decks.service';
 import { CardsService } from '../../core/cards.service';
 import { ToastService } from '../../core/toast.service';
+import { ConfirmService } from '../../core/confirm.service';
 import { Card, DECK_COLORS, Deck, DeckColor } from '../../core/models';
 import { isBeyondSalvage } from '../../core/srs';
 import { cardParts } from '../../core/format';
@@ -27,6 +28,7 @@ export class DeckDetailPage {
   private readonly decksSvc = inject(DecksService);
   private readonly cardsSvc = inject(CardsService);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
   private readonly tts = inject(TtsService);
   private readonly ai = inject(AiService);
   private readonly router = inject(Router);
@@ -226,7 +228,7 @@ export class DeckDetailPage {
   }
 
   protected async deleteCard(card: Card) {
-    if (!confirm('Delete this card? This cannot be undone.')) return;
+    if (!(await this.confirm.ask('Delete card?', `"${card.front}" will be deleted. This cannot be undone.`))) return;
     try {
       await this.cardsSvc.remove(card.id);
       this.cards.update((list) => list.filter((c) => c.id !== card.id));
@@ -280,7 +282,7 @@ export class DeckDetailPage {
   protected async deleteDeck() {
     const d = this.deck();
     if (!d) return;
-    if (!confirm(`Delete "${d.name}" and all its cards? This cannot be undone.`)) return;
+    if (!(await this.confirm.ask('Delete deck?', `"${d.name}" and all its cards will be deleted. This cannot be undone.`))) return;
     try {
       await this.decksSvc.remove(d.id);
       this.toast.show('Deck deleted');

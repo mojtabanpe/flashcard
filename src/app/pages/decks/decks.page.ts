@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { DecksService } from '../../core/decks.service';
 import { ToastService } from '../../core/toast.service';
+import { ConfirmService } from '../../core/confirm.service';
 import { DECK_COLORS, DeckColor, DeckWithStats } from '../../core/models';
 
 @Component({
@@ -15,6 +16,7 @@ import { DECK_COLORS, DeckColor, DeckWithStats } from '../../core/models';
 export class DecksPage {
   private readonly decksSvc = inject(DecksService);
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmService);
 
   protected readonly colors = DECK_COLORS;
   protected readonly decks = signal<DeckWithStats[]>([]);
@@ -70,7 +72,7 @@ export class DecksPage {
     this.menuOpen.set(null);
     const count = deck.total;
     const detail = count > 0 ? ` and its ${count} card${count === 1 ? '' : 's'}` : '';
-    if (!confirm(`Delete "${deck.name}"${detail}? This cannot be undone.`)) return;
+    if (!(await this.confirm.ask('Delete deck?', `"${deck.name}"${detail} will be deleted. This cannot be undone.`))) return;
 
     this.deletingId.set(deck.id);
     try {
