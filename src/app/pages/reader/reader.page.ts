@@ -232,7 +232,8 @@ export class ReaderPage {
       this.deckFronts.get(this.deckId())?.add(front.toLowerCase());
       this.saved.update((set) => new Set(set).add(token.text.toLowerCase()));
       const deck = this.decks().find((d) => d.id === this.deckId());
-      this.toast.show(`Added “${front}” to ${deck?.name ?? 'your deck'}`);
+      const label = front.length > 40 ? front.slice(0, 40).trimEnd() + '…' : front;
+      this.toast.success(`Added “${label}” to ${deck?.name ?? 'your deck'}`);
       this.close();
     } catch (e: any) {
       this.formError.set(e?.message ?? 'Could not add the card. Try again.');

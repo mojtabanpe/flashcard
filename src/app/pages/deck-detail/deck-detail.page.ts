@@ -140,6 +140,8 @@ export class DeckDetailPage {
     try {
       const card = await this.cardsSvc.create(this.id(), front, back, this.unit().trim().toLowerCase(), this.examples().trim());
       this.cards.update((c) => [...c, card]);
+      const label = card.front.length > 40 ? card.front.slice(0, 40).trimEnd() + '…' : card.front;
+      this.toast.success(`Added “${label}” to ${this.deck()?.name ?? 'this deck'}`);
       this.front.set('');
       this.back.set('');
       this.unit.set('');

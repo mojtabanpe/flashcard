@@ -19,7 +19,10 @@ if [[ -f "$base/shared/current-release" ]]; then
   old=$(cat "$base/shared/current-release")
 fi
 if docker inspect recall-postgres-1 >/dev/null 2>&1; then
-  docker exec recall-postgres-1 pg_dump -U recall -Fc recall > "$base/backups/pre-$release-$stamp.dump"
+  # The backups directory belongs to the app user (10001), so write the dump as that user.
+  docker exec recall-postgres-1 pg_dump -U recall -Fc recall \
+    | docker run --rm -i --network none --user 10001:10001 -v "$base/backups:/backups" --entrypoint sh \
+      "$(docker inspect --format '{{.Config.Image}}' recall-postgres-1)" -c "umask 077; cat > /backups/pre-$release-$stamp.dump"
 elif docker inspect recall-app-1 >/dev/null 2>&1; then
   # Before the Postgres cutover the running image still has the SQLite backup tool.
   docker exec recall-app-1 node dist/server/src/backup.js "/app/backups/pre-$release-$stamp.sqlite"
