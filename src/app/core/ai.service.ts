@@ -2,6 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { ApiService } from './api.service';
 
 export interface CardAnswer {
+  /** Dictionary form of the word, e.g. "took" → "take". */
+  front: string;
   back: string;
   examples: string;
 }
@@ -15,7 +17,11 @@ export class AiService {
   private readonly api = inject(ApiService);
 
   /** Suggest a definition and examples for `front`, optionally in the context of a deck. */
-  suggestAnswer(front: string, deck?: string): Promise<CardAnswer> {
-    return this.api.request('POST', '/ai/card-answer', { front, ...(deck ? { deck } : {}) });
+  suggestAnswer(front: string, deck?: string, context?: string): Promise<CardAnswer> {
+    return this.api.request('POST', '/ai/card-answer', {
+      front,
+      ...(deck ? { deck } : {}),
+      ...(context ? { context: context.slice(0, 1000) } : {}),
+    });
   }
 }

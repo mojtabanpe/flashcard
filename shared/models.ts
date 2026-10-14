@@ -44,5 +44,15 @@ export interface DeckWithStats extends Deck {
   suspended: number;
 }
 
+/** A passage the user reads aloud and mines for vocabulary. */
+export interface ReadingText {
+  id: string;
+  user_id: string;
+  title: string;
+  body: string;
+  created_at: string;
+  updated_at: string;
+}
+
 /** How well the user recalled a card during review. */
 export type Rating = 'again' | 'hard' | 'good' | 'easy';

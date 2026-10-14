@@ -9,6 +9,7 @@
 
       @if (auth.isAuthenticated()) {
         <a class="topbar__nav" routerLink="/">Library</a>
+        <a class="topbar__nav" routerLink="/read">Reading</a>
         <div class="topbar__right">
           <span class="topbar__user">{{ auth.user()?.email }}</span>
           <button class="btn btn--ghost btn--sm" (click)="signOut()">

@@ -37,6 +37,11 @@ export function openDatabase(path = databasePath()) {
     );
     CREATE INDEX IF NOT EXISTS decks_owner ON decks(user_id, created_at);
     CREATE INDEX IF NOT EXISTS cards_owner_deck ON cards(user_id, deck_id, due_at);
+    CREATE TABLE IF NOT EXISTS texts (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL, body TEXT NOT NULL, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS texts_owner ON texts(user_id, created_at);
     CREATE TABLE IF NOT EXISTS migration_archive (
       table_name TEXT NOT NULL, row_index INTEGER NOT NULL, payload TEXT NOT NULL, PRIMARY KEY(table_name, row_index)
     );

@@ -1,0 +1,67 @@
+<div class="container page">
+  <div class="texts-head">
+    <div>
+      <h1 class="texts-title">Reading</h1>
+      <p class="texts-intro">Listen to a text, double-click any word to learn it, and save it as a card.</p>
+    </div>
+    <button class="btn btn--accent" (click)="openNew()">
+      <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+           stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+      </svg>
+      Add text
+    </button>
+  </div>
+
+  @if (loading()) {
+    <div class="center-screen"><div class="spinner"></div></div>
+  } @else if (!texts().length) {
+    <div class="panel empty">
+      <h3 style="font-size:1.4rem;margin-bottom:8px">No texts yet</h3>
+      <p style="max-width:40ch;margin:0 auto 22px">Paste an article, a story or a lesson to read it aloud and collect new words.</p>
+      <button class="btn btn--accent" (click)="openNew()">Add your first text</button>
+    </div>
+  } @else {
+    <ul class="text-list">
+      @for (text of texts(); track text.id) {
+        <li class="text-row">
+          <a class="text-row__body" [routerLink]="['/read', text.id]">
+            <h2 class="text-row__title">{{ text.title }}</h2>
+            <p class="text-row__preview">{{ text.body }}</p>
+            <span class="kicker">{{ wordCount(text) }} words</span>
+          </a>
+          <button class="btn btn--ghost btn--sm btn--danger" (click)="remove(text)" [attr.aria-label]="'Delete ' + text.title">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</div>
+
+@if (modalOpen()) {
+  <div class="modal-scrim" appDialogFocus aria-label="Add a text" (dialogDismiss)="modalOpen.set(false)" (click)="modalOpen.set(false)">
+    <div class="modal modal--wide rise" (click)="$event.stopPropagation()">
+      <h2 class="modal__title">Add a text</h2>
+      <div class="field" style="margin-top:18px">
+        <label for="tt">Title (optional)</label>
+        <input id="tt" class="input" maxlength="200" placeholder="Taken from the first words if empty"
+               [ngModel]="title()" (ngModelChange)="title.set($event)" />
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label for="tb">Text</label>
+        <textarea id="tb" class="textarea" rows="12" placeholder="Paste the text you want to read…"
+                  [ngModel]="body()" (ngModelChange)="body.set($event)"></textarea>
+      </div>
+      @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
+      <div class="modal__actions">
+        <button class="btn btn--ghost" [disabled]="saving()" (click)="modalOpen.set(false)">Cancel</button>
+        <button class="btn btn--accent" (click)="save()" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save and read' }}</button>
+      </div>
+    </div>
+  </div>
+}

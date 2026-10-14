@@ -23,5 +23,15 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./pages/study/study.page').then((m) => m.StudyPage),
   },
+  {
+    path: 'read',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/texts/texts.page').then((m) => m.TextsPage),
+  },
+  {
+    path: 'read/:id',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/reader/reader.page').then((m) => m.ReaderPage),
+  },
   { path: '**', redirectTo: '' },
 ];

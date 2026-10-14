@@ -1,0 +1,104 @@
+<div class="container page">
+  <a class="backlink" routerLink="/read">
+    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+         stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6" /></svg>
+    All texts
+  </a>
+
+  @if (loading()) {
+    <div class="center-screen"><div class="spinner"></div></div>
+  } @else if (text(); as t) {
+    <header class="reader-head">
+      <div class="reader-head__main">
+        <h1 class="reader-title">{{ t.title }}</h1>
+        <p class="reader-hint">Double-click a word to see its meaning and save it as a card.</p>
+      </div>
+      <button class="btn" [class.btn--accent]="!reading()" (click)="toggleReading()"
+              [attr.aria-pressed]="reading()">
+        @if (reading()) {
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>
+          Stop
+        } @else {
+          <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l11-6.5a1 1 0 0 0 0-1.72l-11-6.5A1 1 0 0 0 8 5.5Z" /></svg>
+          Read aloud
+        }
+      </button>
+    </header>
+
+    <article class="reader-text panel" lang="en" (dblclick)="onDoubleClick($event)" (pointerup)="onPointerUp($event)">
+      @for (paragraph of doc().paragraphs; track $index) {
+        <p>@for (token of paragraph; track token.id) {@if (token.word) {<span class="w" [attr.data-t]="token.id"
+            [class.is-reading]="readingSentences().has(token.sentence)"
+            [class.is-marked]="marked().has(token.id)"
+            [class.is-saved]="saved().has(token.text.toLowerCase())">{{ token.text }}</span>} @else {<span
+            [class.is-reading]="readingSentences().has(token.sentence)">{{ token.text }}</span>}}</p>
+      }
+    </article>
+  }
+</div>
+
+@if (lookup(); as token) {
+  <div class="modal-scrim lookup-scrim" appDialogFocus aria-label="Word meaning" (dialogDismiss)="close()" (click)="close()">
+    <div class="modal lookup rise" (click)="$event.stopPropagation()">
+      <div class="lookup__head">
+        <div class="field lookup__word">
+          <label for="lf">Word</label>
+          <input id="lf" class="input" [ngModel]="front()" (ngModelChange)="front.set($event); checkDuplicate()" />
+        </div>
+        <button type="button" class="lookup__speaker" (click)="speak(front())" aria-label="Play pronunciation" title="Play pronunciation">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />
+            <path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" />
+          </svg>
+        </button>
+      </div>
+
+      @if (looking()) {
+        <div class="lookup__loading" role="status"><span class="spinner" style="width:18px;height:18px"></span> Finding the meaning…</div>
+      } @else if (lookupError()) {
+        <div class="lookup__loading" role="alert">
+          <span>{{ lookupError() }}</span>
+          <button class="btn btn--sm" (click)="define()">Try again</button>
+        </div>
+      }
+
+      <div class="field" style="margin-top:16px">
+        <label for="lb">Meaning</label>
+        <textarea id="lb" class="textarea" rows="2" [disabled]="looking()"
+                  [ngModel]="back()" (ngModelChange)="back.set($event)"></textarea>
+      </div>
+      <div class="field" style="margin-top:14px">
+        <label for="le">Examples</label>
+        <textarea id="le" class="textarea" rows="3" [disabled]="looking()"
+                  [ngModel]="examples()" (ngModelChange)="examples.set($event)"></textarea>
+      </div>
+
+      @if (decks().length) {
+        <div class="lookup__meta">
+          <div class="field">
+            <label for="ld">Deck</label>
+            <select id="ld" class="input" [ngModel]="deckId()" (ngModelChange)="setDeck($event)">
+              @for (d of decks(); track d.id) { <option [value]="d.id">{{ d.name }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="lu">Unit (optional)</label>
+            <input id="lu" class="input" placeholder="u19" [ngModel]="unit()" (ngModelChange)="unit.set($event)" />
+          </div>
+        </div>
+        @if (duplicate()) { <p class="lookup__note">This word is already in the selected deck.</p> }
+      } @else {
+        <p class="lookup__note">You need a deck first. <a routerLink="/" (click)="close()">Create one in your library</a>.</p>
+      }
+
+      @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
+      <div class="modal__actions">
+        <button class="btn btn--ghost" (click)="close()">Close</button>
+        <button class="btn btn--accent" (click)="addCard()" [disabled]="adding() || looking() || !decks().length">
+          {{ adding() ? 'Adding…' : 'Add card' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

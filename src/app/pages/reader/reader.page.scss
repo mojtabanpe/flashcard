@@ -1,0 +1,33 @@
+:host { display: block; }
+.backlink { display: inline-flex; align-items: center; gap: 8px; color: var(--ink-soft); font-size: .85rem; text-decoration: none; min-height: 44px; margin-bottom: 16px; }
+.reader-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+.reader-head__main { min-width: 0; }
+.reader-head .btn { flex: none; white-space: nowrap; }
+.reader-title { font-size: clamp(1.7rem, 3vw, 2.2rem); overflow-wrap: anywhere; }
+.reader-hint { color: var(--ink-soft); font-size: .9rem; margin: 10px 0 0; }
+.reader-text { padding: 32px clamp(20px, 5vw, 48px); font-size: 1.15rem; line-height: 1.9; max-width: 72ch; touch-action: manipulation; overflow-wrap: anywhere; }
+.reader-text p { margin: 0 0 1.1em; }
+.reader-text p:last-child { margin-bottom: 0; }
+.reader-text .w { cursor: pointer; border-radius: 4px; transition: background 120ms ease; }
+.reader-text .w:hover { background: var(--paper-2); }
+.reader-text .is-reading { background: color-mix(in srgb, var(--accent-tint) 70%, transparent); }
+.reader-text .w.is-saved { text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.reader-text .w.is-marked { background: #ffe58a; color: var(--ink); }
+.lookup { max-width: 540px; }
+.lookup__head { display: flex; align-items: flex-end; gap: 12px; }
+.lookup__word { flex: 1; min-width: 0; }
+.lookup__word .input { font-size: 1.2rem; font-weight: 600; }
+.lookup__speaker { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); color: var(--accent); cursor: pointer; }
+.lookup__speaker:hover { background: var(--accent-tint); }
+.lookup__loading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; color: var(--ink-soft); font-size: .9rem; }
+.lookup__loading:has(.spinner) { justify-content: flex-start; }
+.lookup__meta { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-top: 14px; }
+.lookup__note { color: var(--ink-soft); font-size: .85rem; margin: 12px 0 0; }
+@media(max-width: 600px) {
+  .reader-head { flex-direction: column; align-items: stretch; gap: 16px; }
+  .reader-text { font-size: 1.08rem; padding: 24px 20px; }
+  /* bottom sheet on phones */
+  .lookup-scrim { place-items: end stretch; padding: 0; }
+  .lookup { max-width: none; border-radius: 20px 20px 0 0; max-height: 88dvh; padding-bottom: max(22px, env(safe-area-inset-bottom)); }
+  .lookup__meta { grid-template-columns: 1fr 110px; }
+}

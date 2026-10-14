@@ -1,4 +1,5 @@
 import { AiModule } from './ai/ai.module';
+import { TextsModule } from './texts/texts.module';
 import { PronunciationModule } from './pronunciation/pronunciation.module';
 import { HealthController } from './health.controller';
 import { Module } from '@nestjs/common';
@@ -17,6 +18,7 @@ import { CardsModule } from './cards/cards.module';
     CardsModule,
     PronunciationModule,
     AiModule,
+    TextsModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

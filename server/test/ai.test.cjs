@@ -8,10 +8,10 @@ const { createApp } = require('../dist/server/src/bootstrap');
 const { parseCardAnswer } = require('../dist/server/src/ai/ai.module');
 
 test('parses fenced JSON and array examples', () => {
-  assert.deepEqual(parseCardAnswer('```json\n{"back":" to fail to value ","examples":"- One.\\n- Two."}\n```'), { back: 'to fail to value', examples: '- One.\n- Two.' });
-  assert.deepEqual(parseCardAnswer('{"back":"x","examples":["A.","B."]}'), { back: 'x', examples: '- A.\n- B.' });
-  assert.throws(() => parseCardAnswer('no json here'));
-  assert.throws(() => parseCardAnswer('{"back":"","examples":""}'));
+  assert.deepEqual(parseCardAnswer('```json\n{"back":" to fail to value ","examples":"- One.\\n- Two."}\n```', ' bond '), { front: 'bond', back: 'to fail to value', examples: '- One.\n- Two.' });
+  assert.deepEqual(parseCardAnswer('{"front":"take","back":"x","examples":["A.","B."]}', 'took'), { front: 'take', back: 'x', examples: '- A.\n- B.' });
+  assert.throws(() => parseCardAnswer('no json here', 'x'));
+  assert.throws(() => parseCardAnswer('{"back":"","examples":""}', 'x'));
 });
 
 test('authenticated card-answer proxy to the 9Router chat endpoint', async t => {
@@ -43,18 +43,20 @@ test('authenticated card-answer proxy to the 9Router chat endpoint', async t => 
     await t.test('returns definition and examples; key and model stay on the server', async () => {
       const response = await call('/ai/card-answer', { front: ' take for granted ', deck: 'word skills advanced' }, cookie);
       assert.equal(response.status, 201);
-      assert.deepEqual(await response.json(), { back: 'to fail to appreciate something', examples: '- We take clean water for granted.' });
+      assert.deepEqual(await response.json(), { front: 'take for granted', back: 'to fail to appreciate something', examples: '- We take clean water for granted.' });
       assert.equal(seen[0].path, '/v1/chat/completions');
       assert.equal(seen[0].authorization, 'Bearer test-ai-key');
       assert.equal(seen[0].body.model, 'test-chat-model');
       assert.equal(seen[0].body.stream, false);
       assert.match(seen[0].body.messages[1].content, /Deck: word skills advanced\nFront: take for granted$/);
+      await call('/ai/card-answer', { front: 'took', context: ' She took the bus. ' }, cookie);
+      assert.match(seen[1].body.messages[1].content, /^Front: took\nContext: She took the bus\.$/);
     });
     await t.test('rejects invalid input without calling the provider', async () => {
       assert.equal((await call('/ai/card-answer', { front: ' ' }, cookie)).status, 400);
       assert.equal((await call('/ai/card-answer', { front: 'x'.repeat(501) }, cookie)).status, 400);
       assert.equal((await call('/ai/card-answer', { front: 'bond', model: 'injected' }, cookie)).status, 400);
-      assert.equal(seen.length, 1);
+      assert.equal(seen.length, 2);
     });
     await t.test('provider failures and malformed answers return a generic 502', async () => {
       reply = 'Sorry, I cannot help.';
