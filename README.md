@@ -1,18 +1,20 @@
 # Recall — spaced-repetition flashcards
 
-Recall uses Angular 22, a NestJS API and a persistent SQLite database. Users can sign in from multiple devices; the API restricts every deck and card operation to the signed-in owner.
+Recall uses Angular 22 (an installable PWA), a NestJS API and PostgreSQL. Users can sign in from multiple devices; the API restricts every deck, card and text operation to the signed-in owner.
 
 ## Run locally
 
-Requires Node.js **22.23.2 or newer in the 22 LTS line**, or Node.js 24 LTS, and pnpm 10.15.0. The API uses the built-in `node:sqlite` driver, which Node 22 currently labels experimental.
+Requires Node.js 24 LTS (or 22.23.2+), pnpm 10.15.0 and Docker.
 
 ```bash
 pnpm install --frozen-lockfile
 pnpm --dir server install --frozen-lockfile
+cp server/.env.example server/.env   # then fill in the 9Router key
+pnpm db:up                           # Postgres on 127.0.0.1:5433, Redis on 127.0.0.1:16379
 pnpm api:build
 ```
 
-The migrated database is already in `data/recall.sqlite` on this machine. In two terminals:
+In two terminals:
 
 ```bash
 pnpm api:start
@@ -22,79 +24,54 @@ pnpm api:start
 pnpm start
 ```
 
-Open http://localhost:4333. Angular proxies `/api` to http://127.0.0.1:3000. Existing users can sign in with their previous email/password. Old sessions require a fresh sign-in.
+Open http://localhost:4333. Angular proxies `/api` to http://127.0.0.1:3000. The API creates and upgrades its tables on start.
 
-## Data and migration
+## Environments
 
-The import preserves user IDs, password hashes, every deck/card field, Unicode content, timestamps and SM-2/Lightner review state. All source-table rows, including provider metadata and historical authentication records, are retained as JSON in the private `migration_archive` table. Provider sessions are archival records; new NestJS sessions are issued on sign-in.
+- `src/environments/environment.ts`: local development (`pnpm start`, `ng build --configuration development`). No service worker.
+- `src/environments/environment.prod.ts`: production (`pnpm build`, the default configuration). It replaces the development file and enables the service worker.
+- `server/.env`: local API settings (see `server/.env.example`). Production settings live in `/opt/recall/shared/.env` on the server (see `deploy/.env.example`).
 
-- `data/recall.sqlite`: the live database.
-- `backups/supabase-export.json`: private, consistent source snapshot from the old database.
-- `migration_manifest`: source project, export/import times and verified row counts.
+## Data
 
-These files contain personal data and password hashes, are excluded from Git, and must stay outside the frontend/static document root.
+- `pnpm db:migrate-sqlite [path]`: one-time copy of a legacy SQLite database (default `data/recall.sqlite`) into an empty Postgres database. It runs in one transaction, verifies every table field by field, and is recorded in `data_imports`, so running it again does nothing. Timestamps keep millisecond precision.
+- `pnpm --dir server clone-user <from-email> <new-email> [--same-password]`: creates a user with copies of every deck, card (including review state) and text. Without `--same-password` it asks for the new password without echoing it.
+- `pnpm --dir server set-password <email>`: sets a password and signs out the user's sessions.
+- `pnpm db:backup`: `pg_dump` (custom format) into `backups/`. Restore with `pg_restore --clean -d recall`.
 
-For a **new, empty** destination database:
+Database volumes, `data/` and `backups/` contain personal data and password hashes and are excluded from Git and Docker builds.
 
-```bash
-pnpm db:import
-```
+## PWA
 
-Import runs in one transaction and verifies every application field, password hash and archive row, plus SQLite integrity and foreign keys. It refuses to overwrite an existing database or ignore unrecognized application columns or storage files.
-
-To import at a different path:
-
-```bash
-DATABASE_PATH=/absolute/path/recall.sqlite pnpm db:import
-```
-
-Create a consistent backup while the API is running:
-
-```bash
-pnpm db:backup
-```
-
-To restore, stop the API, preserve the current database and its WAL/SHM files, replace the database with a verified SQLite backup, then restart. Do not overwrite a running database or copy only the main file while WAL writes are active.
+The production build ships `ngsw-worker.js`, `manifest.webmanifest` and icons in `public/icons` (sources in `design-system/icons`). The service worker prefetches the hashed JS/CSS and lazily caches icons and fonts. `index.html` is deliberately not in `ngsw.json`: navigations always go to the network (`navigationRequestStrategy: freshness`), so a deployment is visible immediately, but the app cannot start without a connection. The app shows an install button where the browser supports it, an offline banner, and a "new version" bar with a reload action. The API sends `immutable` caching for hashed files and `no-cache` for `index.html`, `ngsw.json`, the worker and the manifest.
 
 ## Architecture
 
 ```text
-src/app/core/        Angular HTTP client, authentication, deck/card services
-src/app/pages/       login, dashboard, deck management, study
-shared/              shared domain types and pure SM-2/Lightner functions
-server/src/auth/     bcrypt passwords, HttpOnly sessions, authentication guard
-server/src/decks/    owner-scoped deck CRUD and study counts
-server/src/cards/    owner-scoped card CRUD and transactional review scheduling
-server/src/database/ SQLite schema, indexes and lifecycle
-server/src/import.ts transactional source-data import and full verification
+src/app/core/          HTTP client, auth, decks/cards/texts, TTS, AI, PWA services
+src/app/pages/         login, library, deck, study, reading list and reader
+shared/                shared domain types and pure SM-2/Lightner functions
+server/src/auth/       bcrypt passwords, HttpOnly sessions, authentication guard
+server/src/decks/      owner-scoped deck CRUD and study counts
+server/src/cards/      owner-scoped card CRUD and transactional review scheduling
+server/src/texts/      owner-scoped reading texts
+server/src/ai/         card answers through the 9Router chat endpoint
+server/src/database/   Postgres pool, schema and transactions
+server/src/migrate-sqlite.ts  verified SQLite → Postgres import
 ```
 
-Review calculations run on the server against the persisted card; Angular uses the same shared functions for interval previews. Sessions contain random tokens in HttpOnly/SameSite cookies; only token hashes are stored in SQLite. Sign-out revokes the session. Request validation rejects client-supplied ownership fields. All mutations require a custom client header and an allowed Origin. Sign-in and signup are rate-limited.
+Review calculations run on the server against the persisted card, locked with `SELECT … FOR UPDATE`. Sessions contain random tokens in HttpOnly/SameSite cookies; only token hashes are stored. Request validation rejects client-supplied ownership fields. All mutations require a custom client header and an allowed Origin. Sign-in and signup are rate-limited.
 
 ## Build and test
 
 ```bash
 pnpm build
-pnpm api:build
-pnpm api:test
+pnpm test --watch=false
+pnpm db:up && pnpm api:test
 ```
 
-The API tests cover authentication, legacy password migration, session revocation/expiry, isolation between users, CRUD, Unicode, cascade deletion, request validation, CSRF rejection, rate limiting, transactional rollback and SM-2/Lightner scheduling.
+API tests run against Postgres (`DATABASE_TEST_URL`, default the local compose database), each file in its own temporary schema. Set `REDIS_TEST_URL=redis://127.0.0.1:16379` to include the Redis cache tests.
 
-## Future server deployment
+## Deployment
 
-Serve the Angular output at `dist/flashcard/browser` and proxy `/api` to NestJS on the **same HTTPS origin**. Provide a durable, local disk for SQLite; one API instance owns the database. A static-only hosting service cannot run this backend.
-
-Set these server environment variables:
-
-```text
-NODE_ENV=production
-APP_ORIGINS=https://your-domain.example
-DATABASE_PATH=/absolute/persistent/path/recall.sqlite
-HOST=127.0.0.1
-PORT=3000
-```
-
-Production cookies use Secure. Configure any reverse proxy to forward the real client address before relying on per-client rate limiting. Back up the persistent disk regularly.
-
-Before a live cutover, stop writes to the old application, take a fresh consistent export, import into an empty destination, verify it, and route users to the new API. The old cloud project remains available as a recovery source; this change removes it from the application and does not delete the cloud project.
+`deploy/compose.yml` runs the app, Postgres and Redis on the server, all bound to 127.0.0.1 behind Nginx. `deploy/release.sh` backs up the database (`pg_dump`), starts Postgres, runs the one-time SQLite import while the old app is stopped, then starts the new release and rolls back if the health check fails. `POSTGRES_PASSWORD` must be set (hex) in `/opt/recall/shared/.env`. See `deploy/README.fa.md`.

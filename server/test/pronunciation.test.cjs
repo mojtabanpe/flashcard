@@ -5,11 +5,12 @@ const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 const { createApp } = require('../dist/server/src/bootstrap');
+const { useTestDatabase } = require('./db.cjs');
 
 test('production routing and authenticated speech proxy', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'recall-speech-'));
   process.env.NODE_ENV = 'test';
-  process.env.DATABASE_PATH = join(dir, 'test.sqlite');
+  const database = useTestDatabase();
   process.env.FRONTEND_PATH = join(dir, 'public');
   process.env.TTS_API_KEY = 'test-server-key';
   process.env.TTS_MODEL = 'test-model';
@@ -61,6 +62,7 @@ test('production routing and authenticated speech proxy', async t => {
   } finally {
     await app.close();
     await new Promise(resolve => upstream.close(resolve));
+    await database.drop();
     rmSync(dir, { recursive: true, force: true });
   }
 });

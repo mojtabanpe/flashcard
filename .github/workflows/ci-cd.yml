@@ -14,6 +14,19 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
+      postgres:
+        image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+        env:
+          POSTGRES_USER: recall
+          POSTGRES_PASSWORD: recall-ci
+          POSTGRES_DB: recall
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U recall -d recall"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
       redis:
         image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
         ports:
@@ -25,6 +38,7 @@ jobs:
           --health-retries 10
     env:
       REDIS_TEST_URL: redis://127.0.0.1:16379
+      DATABASE_TEST_URL: postgres://recall:recall-ci@127.0.0.1:5433/recall
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6

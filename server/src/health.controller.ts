@@ -5,8 +5,8 @@ import { DatabaseService } from './database/database.service';
 export class HealthController {
   constructor(private readonly database: DatabaseService) {}
   @Public() @Get()
-  check() {
-    this.database.db.prepare('SELECT 1').get();
+  async check() {
+    await this.database.one('SELECT 1');
     return { status: 'ok' };
   }
 }

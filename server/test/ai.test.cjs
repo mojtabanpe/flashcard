@@ -5,6 +5,7 @@ const { mkdtempSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 const { createApp } = require('../dist/server/src/bootstrap');
+const { useTestDatabase } = require('./db.cjs');
 const { parseCardAnswer } = require('../dist/server/src/ai/ai.module');
 
 test('parses fenced JSON and array examples', () => {
@@ -17,7 +18,7 @@ test('parses fenced JSON and array examples', () => {
 test('authenticated card-answer proxy to the 9Router chat endpoint', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'recall-ai-'));
   process.env.NODE_ENV = 'test';
-  process.env.DATABASE_PATH = join(dir, 'test.sqlite');
+  const database = useTestDatabase();
   delete process.env.FRONTEND_PATH;
   process.env.AI_API_KEY = 'test-ai-key';
   process.env.AI_MODEL = 'test-chat-model';
@@ -69,6 +70,7 @@ test('authenticated card-answer proxy to the 9Router chat endpoint', async t => 
   } finally {
     await app.close();
     await new Promise(resolve => upstream.close(resolve));
+    await database.drop();
     rmSync(dir, { recursive: true, force: true });
   }
 });

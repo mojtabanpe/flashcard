@@ -23,7 +23,7 @@ export class AuthGuard implements CanActivate {
     private readonly auth: AuthService,
     private readonly reflector: Reflector,
   ) {}
-  canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext) {
     if (
       this.reflector.getAllAndOverride<boolean>('public', [
         context.getHandler(),
@@ -32,7 +32,7 @@ export class AuthGuard implements CanActivate {
     )
       return true;
     const request = context.switchToHttp().getRequest<AuthRequest>();
-    const user = this.auth.session(readToken(request));
+    const user = await this.auth.session(readToken(request));
     if (!user) throw new UnauthorizedException('Please sign in.');
     request.user = user;
     return true;

@@ -11,13 +11,31 @@ flock -n 9 || { echo 'Another deployment is in progress'; exit 1; }
 compose=(docker compose --env-file "$base/shared/.env" -f "$folder/compose.yml")
 export RELEASE="$release"
 "${compose[@]}" config --quiet
+grep -q '^POSTGRES_PASSWORD=[0-9a-f]\{32,\}$' "$base/shared/.env" || { echo 'Set a hex POSTGRES_PASSWORD in /opt/recall/shared/.env'; exit 1; }
+stamp=$(date -u +%Y%m%dT%H%M%SZ)
+pg() { docker exec recall-postgres-1 psql -v ON_ERROR_STOP=1 -U recall -d recall -tAc "$1"; }
 old=''
 if [[ -f "$base/shared/current-release" ]]; then
   old=$(cat "$base/shared/current-release")
-  # A SQLite online backup remains consistent even when the app is running.
-  docker exec recall-app-1 node dist/server/src/backup.js "/app/backups/pre-$release-$(date -u +%Y%m%dT%H%M%SZ).sqlite"
+fi
+if docker inspect recall-postgres-1 >/dev/null 2>&1; then
+  docker exec recall-postgres-1 pg_dump -U recall -Fc recall > "$base/backups/pre-$release-$stamp.dump"
+elif docker inspect recall-app-1 >/dev/null 2>&1; then
+  # Before the Postgres cutover the running image still has the SQLite backup tool.
+  docker exec recall-app-1 node dist/server/src/backup.js "/app/backups/pre-$release-$stamp.sqlite"
 fi
 gzip -dc image.tar.gz | docker load
+"${compose[@]}" up -d --wait postgres
+if [[ "$(pg "SELECT to_regclass('data_imports') IS NOT NULL AND EXISTS (SELECT 1 FROM data_imports WHERE name='sqlite')" 2>/dev/null)" != t ]] \
+  && [[ -f "$base/data/recall.sqlite" ]]; then
+  echo 'Importing SQLite into Postgres; the app is stopped so no writes are lost.'
+  docker stop recall-app-1 >/dev/null 2>&1 || true
+  if ! "${compose[@]}" run --rm --no-deps app node dist/server/src/migrate-sqlite.js /app/data/recall.sqlite; then
+    echo 'SQLite import failed; restarting the previous release on SQLite.'
+    docker start recall-app-1 >/dev/null 2>&1 || true
+    exit 1
+  fi
+fi
 "${compose[@]}" up -d app
 healthy=false
 for attempt in {1..40}; do

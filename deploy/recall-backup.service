@@ -1,9 +1,9 @@
 [Unit]
-Description=Consistent SQLite backup for Recall
+Description=Consistent Postgres backup for Recall
 Requires=docker.service
 After=docker.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c '/usr/bin/docker exec recall-app-1 node dist/server/src/backup.js /app/backups/daily-$(date -u +%%Y%%m%%dT%%H%%M%%SZ).sqlite'
+ExecStart=/bin/sh -c 'set -e; f=/opt/recall/backups/daily-$(date -u +%%Y%%m%%dT%%H%%M%%SZ).dump; /usr/bin/docker exec recall-postgres-1 pg_dump -U recall -Fc recall > "$f.tmp"; mv "$f.tmp" "$f"'
 UMask=0077

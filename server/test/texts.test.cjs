@@ -4,11 +4,12 @@ const { mkdtempSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 const { createApp } = require('../dist/server/src/bootstrap');
+const { useTestDatabase } = require('./db.cjs');
 
 test('reading texts are private to their owner', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'recall-texts-'));
   process.env.NODE_ENV = 'test';
-  process.env.DATABASE_PATH = join(dir, 'test.sqlite');
+  const database = useTestDatabase();
   delete process.env.FRONTEND_PATH;
   delete process.env.SIGNUP_ENABLED;
   const app = await createApp();
@@ -36,6 +37,7 @@ test('reading texts are private to their owner', async () => {
     assert.equal((await call('GET', '/texts/' + text.id, undefined, alice)).status, 404);
   } finally {
     await app.close();
+    await database.drop();
     rmSync(dir, { recursive: true, force: true });
   }
 });

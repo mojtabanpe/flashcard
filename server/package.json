@@ -5,9 +5,10 @@
   "scripts": {
     "build": "nest build",
     "start": "node --env-file-if-exists=.env dist/server/src/main.js",
-    "test": "pnpm build && node --test test/*.test.cjs",
-    "migrate:import": "pnpm build && node dist/server/src/import.js",
-    "backup": "pnpm build && node dist/server/src/backup.js"
+    "test": "pnpm build && node --env-file-if-exists=.env.test --test --test-concurrency=1 test/*.test.cjs",
+    "migrate:sqlite": "pnpm build && node --env-file-if-exists=.env dist/server/src/migrate-sqlite.js",
+    "clone-user": "pnpm build && node --env-file-if-exists=.env dist/server/src/clone-user.js",
+    "set-password": "pnpm build && node --env-file-if-exists=.env dist/server/src/set-password.js"
   },
   "dependencies": {
     "@nestjs/common": "12.1.3",
@@ -17,6 +18,7 @@
     "bcryptjs": "3.0.3",
     "class-transformer": "0.5.1",
     "class-validator": "0.15.1",
+    "pg": "^8.23.1",
     "redis": "6.3.0",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"
@@ -25,6 +27,7 @@
     "@nestjs/cli": "12.0.8",
     "@types/express": "5.0.6",
     "@types/node": "24.0.0",
+    "@types/pg": "^8.23.1",
     "typescript": "6.0.2"
   }
 }

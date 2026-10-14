@@ -31,7 +31,7 @@ button, a, input, select, textarea, summary { -webkit-tap-highlight-color: trans
 .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .skip-link { position: fixed; top: 12px; left: 16px; z-index: 200; transform: translateY(-200%); background: var(--card); padding: 12px 20px; border-radius: 10px; }
 .skip-link:focus { transform: none; }
-.topbar { background: var(--card); border-bottom: 1px solid var(--line); }
+.topbar { background: var(--card); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
 .topbar__inner { min-height: 72px; display: flex; align-items: center; gap: 32px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
 .brand__mark { width: 34px; height: 36px; border-radius: 9px; background: var(--accent); color: white; display: grid; place-items: center; font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; }

@@ -10,11 +10,15 @@ services:
       HOST: 127.0.0.1
       PORT: 4310
       APP_ORIGINS: https://${APP_DOMAIN:?Set APP_DOMAIN}
+      DATABASE_URL: postgres://recall:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@127.0.0.1:15432/recall
+      # Legacy SQLite file, read once by migrate-sqlite.js during the Postgres cutover.
       DATABASE_PATH: /app/data/recall.sqlite
       FRONTEND_PATH: /app/public
       REDIS_URL: redis://127.0.0.1:16379
       TTS_CACHE_TTL_SECONDS: ${TTS_CACHE_TTL_SECONDS:-86400}
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
@@ -23,6 +27,25 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    security_opt:
+      - no-new-privileges:true
+  postgres:
+    image: postgres:16-alpine@sha256:57c72fd2a128e416c7fcc499958864df5301e940bca0a56f58fddf30ffc07777
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: recall
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: recall
+    ports:
+      - '127.0.0.1:15432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    shm_size: 128mb
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U recall -d recall]
+      interval: 5s
+      timeout: 3s
+      retries: 10
     security_opt:
       - no-new-privileges:true
   redis:
@@ -52,4 +75,5 @@ services:
     security_opt:
       - no-new-privileges:true
 volumes:
+  postgres-data:
   redis-data:

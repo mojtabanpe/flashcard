@@ -8,50 +8,41 @@ import { isLeech, schedule } from '../../../shared/srs';
 @Injectable()
 export class CardsService {
   constructor(
-    private readonly database: DatabaseService,
+    private readonly db: DatabaseService,
     private readonly decks: DecksService,
   ) {}
-  private get db() {
-    return this.database.db;
-  }
-  private card(row: Record<string, unknown>): Card {
-    return { ...row, suspended: Boolean(row['suspended']) } as unknown as Card;
-  }
-  get(userId: string, id: string): Card {
-    const row = this.db
-      .prepare('SELECT * FROM cards WHERE id=? AND user_id=?')
-      .get(id, userId);
+  async get(userId: string, id: string): Promise<Card> {
+    const row = await this.db.one<Card>(
+      'SELECT * FROM cards WHERE id=$1 AND user_id=$2',
+      [id, userId],
+    );
     if (!row) throw new NotFoundException('Card not found.');
-    return this.card(row);
+    return row;
   }
-  list(userId: string, deckId: string, due: boolean) {
-    this.decks.get(userId, deckId);
-    const query = due
-      ? 'SELECT * FROM cards WHERE user_id=? AND deck_id=? AND suspended=0 AND julianday(due_at)<=julianday(?) ORDER BY julianday(due_at),id'
-      : 'SELECT * FROM cards WHERE user_id=? AND deck_id=? ORDER BY created_at,id';
-    const rows = due
-      ? this.db.prepare(query).all(userId, deckId, new Date().toISOString())
-      : this.db.prepare(query).all(userId, deckId);
-    return rows.map((row) => this.card(row));
+  async list(userId: string, deckId: string, due: boolean) {
+    await this.decks.get(userId, deckId);
+    return this.db.many<Card>(
+      due
+        ? 'SELECT * FROM cards WHERE user_id=$1 AND deck_id=$2 AND NOT suspended AND due_at<=now() ORDER BY due_at,id'
+        : 'SELECT * FROM cards WHERE user_id=$1 AND deck_id=$2 ORDER BY created_at,id',
+      [userId, deckId],
+    );
   }
-  create(userId: string, body: CreateCardDto) {
-    this.decks.get(userId, body.deck_id);
+  async create(userId: string, body: CreateCardDto) {
+    await this.decks.get(userId, body.deck_id);
     const id = randomUUID(),
       now = new Date().toISOString();
-    this.db
-      .prepare(
-        `INSERT INTO cards (id,deck_id,user_id,front,back,unit,examples,due_at,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
-      )
-      .run(id, body.deck_id, userId, body.front, body.back, body.unit?.toLowerCase() ?? '', body.examples ?? '', now, now, now);
+    await this.db.run(
+      `INSERT INTO cards (id,deck_id,user_id,front,back,unit,examples,due_at,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+      [id, body.deck_id, userId, body.front, body.back, body.unit?.toLowerCase() ?? '', body.examples ?? '', now, now, now],
+    );
     return this.get(userId, id);
   }
-  update(userId: string, id: string, body: UpdateCardDto) {
-    const card = this.get(userId, id);
-    this.db
-      .prepare(
-        'UPDATE cards SET front=?,back=?,unit=?,examples=?,updated_at=? WHERE id=? AND user_id=?',
-      )
-      .run(
+  async update(userId: string, id: string, body: UpdateCardDto) {
+    const card = await this.get(userId, id);
+    await this.db.run(
+      'UPDATE cards SET front=$1,back=$2,unit=$3,examples=$4,updated_at=$5 WHERE id=$6 AND user_id=$7',
+      [
         body.front ?? card.front,
         body.back ?? card.back,
         body.unit?.toLowerCase() ?? card.unit,
@@ -59,58 +50,60 @@ export class CardsService {
         new Date().toISOString(),
         id,
         userId,
-      );
+      ],
+    );
     return this.get(userId, id);
   }
-  remove(userId: string, id: string) {
-    this.get(userId, id);
-    this.db
-      .prepare('DELETE FROM cards WHERE id=? AND user_id=?')
-      .run(id, userId);
+  async remove(userId: string, id: string) {
+    await this.get(userId, id);
+    await this.db.run('DELETE FROM cards WHERE id=$1 AND user_id=$2', [
+      id,
+      userId,
+    ]);
     return { deleted: true };
   }
-  unsuspend(userId: string, id: string) {
-    this.get(userId, id);
-    this.db
-      .prepare(
-        'UPDATE cards SET suspended=0,lapses=0,updated_at=? WHERE id=? AND user_id=?',
-      )
-      .run(new Date().toISOString(), id, userId);
+  async unsuspend(userId: string, id: string) {
+    await this.get(userId, id);
+    await this.db.run(
+      'UPDATE cards SET suspended=FALSE,lapses=0,updated_at=$1 WHERE id=$2 AND user_id=$3',
+      [new Date().toISOString(), id, userId],
+    );
     return this.get(userId, id);
   }
   review(userId: string, id: string, body: ReviewDto) {
-    this.db.exec('BEGIN IMMEDIATE');
-    try {
-      const card = this.get(userId, id);
+    return this.db.transaction(async (client) => {
+      // Lock the row so concurrent reviews of one card apply in order.
+      const card = (
+        await client.query<Card>(
+          'SELECT * FROM cards WHERE id=$1 AND user_id=$2 FOR UPDATE',
+          [id, userId],
+        )
+      ).rows[0];
+      if (!card) throw new NotFoundException('Card not found.');
       const next = schedule(card, body.rating);
       const suspended =
         card.suspended || (body.rating === 'again' && isLeech(next));
       const suspensions =
         card.suspensions + (!card.suspended && suspended ? 1 : 0);
-      this.db
-        .prepare(
-          `UPDATE cards SET ease_factor=?,interval_days=?,repetitions=?,lapses=?,due_at=?,
-        last_reviewed_at=?,suspended=?,suspensions=?,updated_at=? WHERE id=? AND user_id=?`,
+      return (
+        await client.query<Card>(
+          `UPDATE cards SET ease_factor=$1,interval_days=$2,repetitions=$3,lapses=$4,due_at=$5,
+        last_reviewed_at=$6,suspended=$7,suspensions=$8,updated_at=$9 WHERE id=$10 AND user_id=$11 RETURNING *`,
+          [
+            next.ease_factor,
+            next.interval_days,
+            next.repetitions,
+            next.lapses,
+            next.due_at,
+            next.last_reviewed_at,
+            suspended,
+            suspensions,
+            new Date().toISOString(),
+            id,
+            userId,
+          ],
         )
-        .run(
-          next.ease_factor,
-          next.interval_days,
-          next.repetitions,
-          next.lapses,
-          next.due_at,
-          next.last_reviewed_at,
-          Number(suspended),
-          suspensions,
-          new Date().toISOString(),
-          id,
-          userId,
-        );
-      const result = this.get(userId, id);
-      this.db.exec('COMMIT');
-      return result;
-    } catch (error) {
-      this.db.exec('ROLLBACK');
-      throw error;
-    }
+      ).rows[0];
+    });
   }
 }

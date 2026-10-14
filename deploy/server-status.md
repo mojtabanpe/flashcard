@@ -5,7 +5,7 @@
 - Deployment user: `recall-deploy` (UID/GID 11001)
 - Application: `recall-app-1`, non-root UID/GID 10001, healthy
 - Listener: `127.0.0.1:4310`, behind host Nginx and HTTPS
-- Database: `/opt/recall/data/recall.sqlite`
+- Database: Postgres 16 container `recall-postgres-1` on `127.0.0.1:15432`, volume `recall_postgres-data` (legacy SQLite kept read-only at `/opt/recall/data/recall.sqlite`)
 - Private environment: `/opt/recall/shared/.env`
 - Backups: `/opt/recall/backups`
 - Initial snapshot: `2904c051e1e3eb601cb6cf6263405cc2bd950d73`

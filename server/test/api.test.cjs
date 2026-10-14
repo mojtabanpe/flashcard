@@ -4,19 +4,20 @@ const { mkdtempSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 const { createApp } = require('../dist/server/src/bootstrap');
+const { useTestDatabase } = require('./db.cjs');
 const {
   DatabaseService,
 } = require('../dist/server/src/database/database.service');
 const { randomUUID } = require('node:crypto');
 
-test('SQLite API: sessions, ownership, CRUD, scheduling and validation', async (t) => {
+test('Postgres API: sessions, ownership, CRUD, scheduling and validation', async (t) => {
   const dir = mkdtempSync(join(tmpdir(), 'recall-api-'));
-  process.env.DATABASE_PATH = join(dir, 'test.sqlite');
+  const database = useTestDatabase();
   process.env.NODE_ENV = 'test';
   const app = await createApp();
   await app.listen(0, '127.0.0.1');
   const url = 'http://127.0.0.1:' + app.getHttpServer().address().port + '/api';
-  const db = app.get(DatabaseService).db;
+  const db = app.get(DatabaseService);
   const call = async (method, path, body, cookie, headers = {}) => {
     const r = await fetch(url + path, {
       method,
@@ -183,9 +184,9 @@ test('SQLite API: sessions, ownership, CRUD, scheduling and validation', async (
           ).body.length,
           0,
         );
-        db.prepare('UPDATE cards SET lapses=7,ease_factor=1.3 WHERE id=?').run(
+        await db.run('UPDATE cards SET lapses=7,ease_factor=1.3 WHERE id=$1', [
           card.id,
-        );
+        ]);
         const leech = (
           await call(
             'POST',
@@ -272,12 +273,12 @@ test('SQLite API: sessions, ownership, CRUD, scheduling and validation', async (
         (await call('DELETE', '/decks/' + deck.id, undefined, ca)).status,
         200,
       );
-      assert.equal(db.prepare('SELECT COUNT(*) AS n FROM cards').get().n, 0);
+      assert.equal((await db.one('SELECT COUNT(*) AS n FROM cards')).n, 0);
       assert.equal((await call('POST', '/auth/signout', {}, ca)).status, 201);
       assert.equal((await call('GET', '/decks', undefined, ca)).status, 401);
     });
     await t.test('expired sessions and sign-in rate limit', async () => {
-      db.prepare('UPDATE sessions SET expires_at=0').run();
+      await db.run('UPDATE sessions SET expires_at=0');
       assert.equal((await call('GET', '/decks', undefined, cb)).status, 401);
       let last;
       for (let i = 0; i < 12; i++)
@@ -289,6 +290,7 @@ test('SQLite API: sessions, ownership, CRUD, scheduling and validation', async (
     });
   } finally {
     await app.close();
+    await database.drop();
     rmSync(dir, { recursive: true, force: true });
   }
 });

@@ -10,8 +10,9 @@
     "api:build": "pnpm --dir server build",
     "api:start": "pnpm --dir server start",
     "api:test": "pnpm --dir server test",
-    "db:import": "pnpm --dir server migrate:import",
-    "db:backup": "pnpm --dir server backup"
+    "db:backup": "mkdir -p backups && docker compose exec -T postgres pg_dump -U recall -Fc recall > backups/recall-$(date -u +%Y%m%dT%H%M%SZ).dump",
+    "db:up": "docker compose up -d --wait",
+    "db:migrate-sqlite": "pnpm --dir server migrate:sqlite"
   },
   "private": true,
   "packageManager": "pnpm@10.15.0",
@@ -22,6 +23,7 @@
     "@angular/forms": "^22.0.0",
     "@angular/platform-browser": "^22.0.0",
     "@angular/router": "^22.0.0",
+    "@angular/service-worker": "^22.2.2",
     "marked": "^18.0.5",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"

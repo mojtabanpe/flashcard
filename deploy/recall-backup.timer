@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily Recall SQLite backup
+Description=Daily Recall Postgres backup
 
 [Timer]
 OnCalendar=*-*-* 02:00:00 UTC

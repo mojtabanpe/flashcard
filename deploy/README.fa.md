@@ -129,14 +129,22 @@ curl -f https://poshtetgarm.ir/api/health
 docker ps --filter name=recall-app-1
 ```
 
-از گوشی وارد `https://poshtetgarm.ir` شوید، با حساب قبلی وارد شوید و تلفظ را امتحان کنید. افزودن کامل PWA/مرور آفلاین بخشی از این CI/CD نیست.
+از گوشی وارد `https://poshtetgarm.ir` شوید، با حساب قبلی وارد شوید و تلفظ را امتحان کنید. برنامه PWA است: در مرورگر گوشی گزینهٔ «Add to Home Screen» یا دکمهٔ «Install app» را بزنید. index.html کش نمی‌شود، پس نسخهٔ جدید بلافاصله دیده می‌شود ولی اجرای کاملاً آفلاین ممکن نیست.
 
 ## بکاپ و بازگشت
 
-قبل از هر استقرار بعدی، از دیتابیس بکاپ online گرفته می‌شود. داده در `/opt/recall/data` و بکاپ‌ها در `/opt/recall/backups` خارج از ایمیج باقی می‌مانند. برای بکاپ مستقل از استقرار، این دستور را به برنامهٔ بکاپ موجود سرور اضافه کنید؛ بکاپی خارج از خود سرور نیز نگه دارید:
+قبل از هر استقرار بعدی، از Postgres با `pg_dump` بکاپ گرفته می‌شود. دادهٔ Postgres در volume داکر `recall_postgres-data` و بکاپ‌ها در `/opt/recall/backups` خارج از ایمیج باقی می‌مانند. برای بکاپ مستقل از استقرار، این دستور را به برنامهٔ بکاپ موجود سرور اضافه کنید؛ بکاپی خارج از خود سرور نیز نگه دارید:
 
 ```sh
-docker exec recall-app-1 node dist/server/src/backup.js /app/backups/manual-YYYYMMDD-HHMMSS.sqlite
+docker exec recall-postgres-1 pg_dump -U recall -Fc recall > /opt/recall/backups/manual-$(date -u +%Y%m%dT%H%M%SZ).dump
+```
+
+بازگردانی (با برنامهٔ متوقف‌شده):
+
+```sh
+docker stop recall-app-1
+docker exec -i recall-postgres-1 pg_restore -U recall -d recall --clean --if-exists < /opt/recall/backups/FILE.dump
+docker start recall-app-1
 ```
 
 در شکست health check، ایمیج قبلی خودکار برمی‌گردد. دیتابیس خودکار بازگردانی نمی‌شود تا مرورهای جدید حذف نشوند؛ مهاجرت‌های آینده باید با نسخهٔ قبلی سازگار باشند. برای بازگشت دستی به نسخهٔ قبلیِ موجود:

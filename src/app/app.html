@@ -11,6 +11,15 @@
         <a class="topbar__nav" routerLink="/">Library</a>
         <a class="topbar__nav" routerLink="/read">Reading</a>
         <div class="topbar__right">
+          @if (pwa.canInstall()) {
+            <button class="btn btn--ghost btn--sm" (click)="pwa.install()">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                   stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
+              </svg>
+              Install app
+            </button>
+          }
           <span class="topbar__user">{{ auth.user()?.email }}</span>
           <button class="btn btn--ghost btn--sm" (click)="signOut()">
             <svg
@@ -33,10 +42,22 @@
     </div>
   </header>
 
+  @if (pwa.offline()) {
+    <div class="app-banner app-banner--offline" role="status">You're offline. Changes need a connection.</div>
+  }
+
   <main class="shell__body" id="main-content" tabindex="-1">
     <router-outlet />
   </main>
 </div>
+
+@if (pwa.updateReady() || pwa.broken()) {
+  <div class="update-bar" role="status">
+    <span>{{ pwa.broken() ? 'This version of Recall needs to reload.' : 'A new version of Recall is ready.' }}</span>
+    @if (!pwa.broken()) { <button class="btn btn--ghost btn--sm" (click)="pwa.dismissUpdate()">Later</button> }
+    <button class="btn btn--accent btn--sm" (click)="pwa.reload()">Reload</button>
+  </div>
+}
 
 <div class="toast-host" aria-live="polite" aria-atomic="true">
   @for (t of toast.toasts(); track t.id) {

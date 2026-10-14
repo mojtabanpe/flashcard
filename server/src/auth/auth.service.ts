@@ -21,24 +21,20 @@ const digest = (token: string) =>
   createHash('sha256').update(token).digest('hex');
 @Injectable()
 export class AuthService {
-  constructor(private readonly database: DatabaseService) {}
-  private get db() {
-    return this.database.db;
-  }
+  constructor(private readonly db: DatabaseService) {}
   async signUp(email: string, password: string) {
     email = email.trim().toLowerCase();
-    if (this.db.prepare('SELECT id FROM users WHERE email = ?').get(email))
+    if (await this.db.one('SELECT id FROM users WHERE lower(email) = $1', [email]))
       throw new ConflictException('An account with this email already exists.');
     const passwordHash = await hash(password, 12);
     const id = randomUUID();
     try {
-      this.db
-        .prepare(
-          'INSERT INTO users (id,email,password_hash,created_at) VALUES (?,?,?,?)',
-        )
-        .run(id, email, passwordHash, new Date().toISOString());
+      await this.db.run(
+        'INSERT INTO users (id,email,password_hash,created_at) VALUES ($1,$2,$3,$4)',
+        [id, email, passwordHash, new Date().toISOString()],
+      );
     } catch (error) {
-      if (this.db.prepare('SELECT id FROM users WHERE email = ?').get(email))
+      if ((error as { code?: string }).code === '23505')
         throw new ConflictException(
           'An account with this email already exists.',
         );
@@ -47,9 +43,10 @@ export class AuthService {
     return this.newSession({ id, email });
   }
   async signIn(email: string, password: string) {
-    const row = this.db
-      .prepare('SELECT * FROM users WHERE email = ?')
-      .get(email.trim().toLowerCase()) as unknown as UserRow | undefined;
+    const row = await this.db.one<UserRow>(
+      'SELECT * FROM users WHERE lower(email) = $1',
+      [email.trim().toLowerCase()],
+    );
     const fallback =
       '$2b$12$C6UzMDM.H6dfI/f/IKcEe.4SOXtIrvn7uY7JjfKtUkCMLjGbFbN5a';
     const matches = await compare(password, row?.password_hash || fallback);
@@ -62,24 +59,25 @@ export class AuthService {
       throw new UnauthorizedException('Email or password is incorrect.');
     return this.newSession({ id: row.id, email: row.email });
   }
-  private newSession(user: User) {
-    this.db
-      .prepare('DELETE FROM sessions WHERE expires_at <= ?')
-      .run(Date.now());
+  private async newSession(user: User) {
+    await this.db.run('DELETE FROM sessions WHERE expires_at <= $1', [
+      Date.now(),
+    ]);
     const token = randomBytes(32).toString('base64url');
-    this.db
-      .prepare('INSERT INTO sessions VALUES (?,?,?)')
-      .run(digest(token), user.id, Date.now() + lifetime);
+    await this.db.run('INSERT INTO sessions VALUES ($1,$2,$3)', [
+      digest(token),
+      user.id,
+      Date.now() + lifetime,
+    ]);
     return { user, token, maxAge: lifetime };
   }
-  session(token?: string): User | null {
+  async session(token?: string): Promise<User | null> {
     if (!token || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
-    const row = this.db
-      .prepare(
-        `SELECT u.id,u.email,u.banned_until,u.deleted_at FROM sessions s
-      JOIN users u ON u.id=s.user_id WHERE s.token_hash=? AND s.expires_at>?`,
-      )
-      .get(digest(token), Date.now()) as unknown as UserRow | undefined;
+    const row = await this.db.one<UserRow>(
+      `SELECT u.id,u.email,u.banned_until,u.deleted_at FROM sessions s
+      JOIN users u ON u.id=s.user_id WHERE s.token_hash=$1 AND s.expires_at>$2`,
+      [digest(token), Date.now()],
+    );
     if (
       !row ||
       row.deleted_at ||
@@ -88,10 +86,10 @@ export class AuthService {
       return null;
     return { id: row.id, email: row.email };
   }
-  signOut(token?: string) {
+  async signOut(token?: string) {
     if (token)
-      this.db
-        .prepare('DELETE FROM sessions WHERE token_hash=?')
-        .run(digest(token));
+      await this.db.run('DELETE FROM sessions WHERE token_hash=$1', [
+        digest(token),
+      ]);
   }
 }

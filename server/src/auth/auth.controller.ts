@@ -9,8 +9,8 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
   @Public()
   @Get('session')
-  session(@Req() request: Request) {
-    return { user: this.auth.session(readToken(request)) };
+  async session(@Req() request: Request) {
+    return { user: await this.auth.session(readToken(request)) };
   }
   @Public()
   @Post('signup')
@@ -39,11 +39,11 @@ export class AuthController {
   }
   @Public()
   @Post('signout')
-  signout(
+  async signout(
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response,
   ) {
-    this.auth.signOut(readToken(request));
+    await this.auth.signOut(readToken(request));
     response.clearCookie(sessionCookie, this.cookieOptions());
     return { user: null };
   }

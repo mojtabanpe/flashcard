@@ -46,7 +46,17 @@ export async function createApp(): Promise<INestApplication> {
   const frontend = process.env['FRONTEND_PATH'];
   if (frontend) {
     const root = resolve(frontend);
-    app.useStaticAssets(root);
+    app.useStaticAssets(root, {
+      // Hashed build files never change; index.html, ngsw.json, the service
+      // worker and the manifest must always be revalidated.
+      setHeaders: (response: Response, path: string) =>
+        response.setHeader(
+          'Cache-Control',
+          /-[A-Za-z0-9_-]{8}\.(?:js|css)$/.test(path)
+            ? 'public, max-age=31536000, immutable'
+            : 'no-cache',
+        ),
+    });
     app.getHttpAdapter().getInstance().get(/^(?!\/api(?:\/|$)).*/, (_request: Request, response: Response) => {
       response.sendFile('index.html', { root });
     });
