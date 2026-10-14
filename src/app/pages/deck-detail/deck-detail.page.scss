@@ -48,6 +48,20 @@
   gap: 14px;
   margin-top: 16px;
 }
+.field__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  label {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+}
+.ai-fill { padding: 4px 9px; font-size: 0.76rem; margin: -4px 0; }
 .composer__hint { color: var(--ink-faint); font-size: 0.82rem; font-style: italic; }
 
 /* card list */

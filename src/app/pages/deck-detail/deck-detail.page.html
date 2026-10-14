@@ -57,9 +57,26 @@
         </div>
         <div class="composer__divider" aria-hidden="true"></div>
         <div class="field">
-          <label for="back">Back</label>
+          <div class="field__head">
+            <label for="back">Back</label>
+            <button type="button" class="btn btn--ghost btn--sm ai-fill" (click)="fillBackWithAi()"
+                    [disabled]="generating() || !front().trim()"
+                    title="Generate the answer with AI from the front">
+              @if (generating()) {
+                <span class="spinner" style="width:14px;height:14px;border-width:2px"></span>
+              } @else {
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                     stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z" />
+                  <path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8Z" />
+                </svg>
+              }
+              Fill with AI
+            </button>
+          </div>
           <textarea id="back" class="textarea" rows="2" placeholder="Answer"
-                    [ngModel]="back()" (ngModelChange)="back.set($event)"></textarea>
+                    [ngModel]="back()" (ngModelChange)="back.set($event)"
+                    [disabled]="generating()"></textarea>
         </div>
       </div>
       <div class="composer__foot">
