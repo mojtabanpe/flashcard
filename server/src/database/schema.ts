@@ -39,6 +39,28 @@ export async function migrate(db: Queryable, schema = databaseSchema()) {
       expires_at BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
+    CREATE TABLE IF NOT EXISTS mcp_keys (
+      id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      name TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, scopes TEXT[] NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS mcp_keys_owner ON mcp_keys(user_id);
+    CREATE TABLE IF NOT EXISTS mcp_clients (id TEXT PRIMARY KEY, metadata JSONB NOT NULL);
+    CREATE TABLE IF NOT EXISTS mcp_pending (
+      id TEXT PRIMARY KEY, client_id TEXT NOT NULL REFERENCES mcp_clients(id) ON DELETE CASCADE,
+      params JSONB NOT NULL, csrf_hash TEXT NOT NULL, expires_at BIGINT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS mcp_codes (
+      code_hash TEXT PRIMARY KEY, key_id TEXT NOT NULL REFERENCES mcp_keys(id) ON DELETE CASCADE,
+      client_id TEXT NOT NULL REFERENCES mcp_clients(id) ON DELETE CASCADE, params JSONB NOT NULL, expires_at BIGINT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS mcp_credentials (
+      token_hash TEXT PRIMARY KEY, refresh_hash TEXT NOT NULL UNIQUE,
+      key_id TEXT NOT NULL REFERENCES mcp_keys(id) ON DELETE CASCADE,
+      client_id TEXT NOT NULL REFERENCES mcp_clients(id) ON DELETE CASCADE, scopes TEXT[] NOT NULL,
+      access_expires BIGINT NOT NULL, refresh_expires BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS mcp_credentials_key ON mcp_credentials(key_id);
     CREATE TABLE IF NOT EXISTS decks (
       id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', color TEXT NOT NULL DEFAULT 'amber',

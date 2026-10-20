@@ -10,6 +10,7 @@
       @if (auth.isAuthenticated()) {
         <a class="topbar__nav" routerLink="/">Library</a>
         <a class="topbar__nav" routerLink="/read">Reading</a>
+        <a class="topbar__nav" href="/api/mcp/setup" target="_blank" rel="noopener">ChatGPT</a>
         <div class="topbar__right">
           @if (pwa.canInstall()) {
             <button class="btn btn--ghost btn--sm" (click)="pwa.install()">

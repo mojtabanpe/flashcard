@@ -75,3 +75,10 @@ API tests run against Postgres (`DATABASE_TEST_URL`, default the local compose d
 ## Deployment
 
 `deploy/compose.yml` runs the app, Postgres and Redis on the server, all bound to 127.0.0.1 behind Nginx. `deploy/release.sh` backs up the database (`pg_dump`), starts Postgres, runs the one-time SQLite import while the old app is stopped, then starts the new release and rolls back if the health check fails. `POSTGRES_PASSWORD` must be set (hex) in `/opt/recall/shared/.env`. See `deploy/README.fa.md`.
+
+## ChatGPT MCP connection
+
+Sign in and select **ChatGPT** in the header to create a personal token. Connect
+`https://poshtetgarm.ir/api/mcp` in ChatGPT using OAuth and paste the token on
+the Recall authorization page. ChatGPT can save flashcards and reading passages
+to your account. See [the MCP guide](server/MCP.md) for setup, scopes and revocation.

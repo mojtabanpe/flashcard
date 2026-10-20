@@ -1,0 +1,21 @@
+# Build the frontend and API locally first; see server/MCP.md.
+# Reuse the normal dependency layers, but do not compile on the production host.
+FROM node:24-bookworm-slim AS dependencies
+RUN npm install --global pnpm@10.15.0
+WORKDIR /build
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY server/package.json server/pnpm-lock.yaml server/pnpm-workspace.yaml ./server/
+RUN pnpm --dir server install --frozen-lockfile
+RUN pnpm --dir server prune --prod
+
+FROM node:24-bookworm-slim AS runtime
+WORKDIR /app
+RUN groupadd --gid 10001 recall && useradd --uid 10001 --gid recall --no-create-home recall
+COPY --from=dependencies /build/server/node_modules ./node_modules
+COPY server/dist ./dist
+COPY dist/flashcard/browser ./public
+ENV NODE_ENV=production HOST=127.0.0.1 PORT=3000 FRONTEND_PATH=/app/public DATABASE_PATH=/app/data/recall.sqlite
+USER 10001:10001
+HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 CMD node -e "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+CMD ["node", "dist/server/src/main.js"]

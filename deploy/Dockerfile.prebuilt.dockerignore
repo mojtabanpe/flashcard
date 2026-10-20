@@ -1,0 +1,14 @@
+.git
+.github
+node_modules
+server/node_modules
+.angular
+.env
+.env.*
+**/.env
+**/.env.*
+data
+backups
+*.sqlite*
+outputs
+.playwright-mcp

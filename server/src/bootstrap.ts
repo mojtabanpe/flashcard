@@ -5,6 +5,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import type { Request, Response, NextFunction } from 'express';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { McpService } from './mcp/mcp.service';
 export async function createApp(): Promise<INestApplication> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: process.env['NODE_ENV'] === 'test' ? false : undefined,
@@ -18,6 +19,7 @@ export async function createApp(): Promise<INestApplication> {
     throw new Error('APP_ORIGINS is required in production.');
   app.setGlobalPrefix('api');
   app.set('trust proxy', 'loopback');
+  app.get(McpService).mount(app.getHttpAdapter().getInstance());
   app.enableCors({
     origin: origins,
     credentials: true,
@@ -57,9 +59,12 @@ export async function createApp(): Promise<INestApplication> {
             : 'no-cache',
         ),
     });
-    app.getHttpAdapter().getInstance().get(/^(?!\/api(?:\/|$)).*/, (_request: Request, response: Response) => {
-      response.sendFile('index.html', { root });
-    });
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .get(/^(?!\/api(?:\/|$)).*/, (_request: Request, response: Response) => {
+        response.sendFile('index.html', { root });
+      });
   }
   app.enableShutdownHooks();
   return app;

@@ -1,4 +1,25 @@
 /* Recall: quiet application chrome, a clear blue action, and words that take centre stage. */
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/InterVariable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Inter';
+  src: url('/fonts/InterVariable-Italic.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Vazirmatn';
+  src: url('/fonts/Vazirmatn-Variable.woff2') format('woff2');
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
 :root {
   --paper: #f3f6fb; --paper-2: #e5ebf3; --card: #fff;
   --ink: #182638; --ink-soft: #52647a; --ink-faint: #62738a;
@@ -6,7 +27,9 @@
   --accent: #2456d8; --accent-deep: #1b43b0; --accent-tint: #eaf0ff; --on-accent: #fff;
   --good: #186546; --good-tint: #e8f5ee; --warn: #91621a; --danger: #b23543; --danger-tint: #fff0f1;
   --c-amber: #bd873a; --c-rose: #b76487; --c-sage: #52896e; --c-sky: #4d86be; --c-violet: #8270b3; --c-clay: #bd795f;
-  --font-display: 'Fraunces', Georgia, serif; --font-ui: 'Archivo', system-ui, sans-serif; --font-mono: 'DM Mono', ui-monospace, monospace;
+  --font-ui: 'Inter', 'Vazirmatn', system-ui, sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono: ui-monospace, SFMono-Regular, Consolas, 'Vazirmatn', monospace;
   --radius: 12px; --radius-lg: 20px;
   --shadow-sm: 0 1px 2px rgb(24 38 56 / 4%);
   --shadow-md: 0 4px 16px rgb(24 38 56 / 7%);
@@ -15,7 +38,7 @@
 * { box-sizing: border-box; }
 html, body { min-height: 100%; }
 html { scrollbar-gutter: stable; }
-body { margin: 0; font-family: var(--font-ui); color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+body { margin: 0; font-family: var(--font-ui); font-optical-sizing: auto; line-height: 1.6; color: var(--ink); background: var(--paper); -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
 h1, h2, h3, h4 { font-family: var(--font-ui); font-weight: 600; line-height: 1.25; letter-spacing: -.025em; margin: 0; text-wrap: balance; }
 p { line-height: 1.6; }
 a { color: inherit; text-underline-offset: 3px; }
@@ -32,7 +55,7 @@ button, a, input, select, textarea, summary { -webkit-tap-highlight-color: trans
 .skip-link { position: fixed; top: 12px; left: 16px; z-index: 200; transform: translateY(-200%); background: var(--card); padding: 12px 20px; border-radius: 10px; }
 .skip-link:focus { transform: none; }
 .topbar { background: var(--card); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
-.topbar__inner { min-height: 72px; display: flex; align-items: center; gap: 32px; }
+.topbar__inner { min-height: 72px; display: flex; align-items: center; flex-wrap: wrap; gap: 0 32px; padding-block: 8px; }
 .brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
 .brand__mark { width: 34px; height: 36px; border-radius: 9px; background: var(--accent); color: white; display: grid; place-items: center; font-family: var(--font-display); font-weight: 600; font-size: 1.3rem; }
 .brand__name { font-family: var(--font-ui); font-size: 1.15rem; font-weight: 600; letter-spacing: -.03em; }
@@ -101,7 +124,7 @@ button, a, input, select, textarea, summary { -webkit-tap-highlight-color: trans
 @media(max-width: 600px) {
  .container { padding-inline: 20px; }
  .page { padding-block: 28px 40px; }
- .topbar__inner { min-height: 64px; gap: 20px; }
+ .topbar__inner { min-height: 64px; gap: 0 20px; }
  .topbar__user { display: none; }
  .topbar__right { gap: 0; }
  .brand__name { font-size: 1.05rem; }

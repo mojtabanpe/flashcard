@@ -9,6 +9,7 @@ import { DatabaseModule } from './database/database.module';
 import { AuthModule } from './auth/auth.module';
 import { DecksModule } from './decks/decks.module';
 import { CardsModule } from './cards/cards.module';
+import { McpModule } from './mcp/mcp.module';
 @Module({
   imports: [
     DatabaseModule,
@@ -19,6 +20,7 @@ import { CardsModule } from './cards/cards.module';
     PronunciationModule,
     AiModule,
     TextsModule,
+    McpModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
