@@ -34,7 +34,18 @@ export class CardsService {
       now = new Date().toISOString();
     await this.db.run(
       `INSERT INTO cards (id,deck_id,user_id,front,back,unit,examples,due_at,created_at,updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [id, body.deck_id, userId, body.front, body.back, body.unit?.toLowerCase() ?? '', body.examples ?? '', now, now, now],
+      [
+        id,
+        body.deck_id,
+        userId,
+        body.front,
+        body.back,
+        body.unit?.toLowerCase() ?? '',
+        body.examples ?? '',
+        now,
+        now,
+        now,
+      ],
     );
     return this.get(userId, id);
   }
@@ -61,6 +72,39 @@ export class CardsService {
       userId,
     ]);
     return { deleted: true };
+  }
+  async search(
+    userId: string,
+    query: string,
+    deckId?: string,
+    limit = 50,
+    offset = 0,
+  ) {
+    if (deckId) await this.decks.get(userId, deckId);
+    return this.db.many<Card>(
+      `SELECT * FROM cards WHERE user_id=$1
+       AND ($2::text IS NULL OR deck_id=$2)
+       AND position(lower($3) in lower(front || ' ' || back || ' ' || examples || ' ' || unit)) > 0
+       ORDER BY created_at,id LIMIT $4 OFFSET $5`,
+      [userId, deckId ?? null, query, limit, offset],
+    );
+  }
+  async move(userId: string, id: string, deckId: string) {
+    await this.get(userId, id);
+    await this.decks.get(userId, deckId);
+    await this.db.run(
+      'UPDATE cards SET deck_id=$1,updated_at=$2 WHERE id=$3 AND user_id=$4',
+      [deckId, new Date().toISOString(), id, userId],
+    );
+    return this.get(userId, id);
+  }
+  async suspend(userId: string, id: string) {
+    await this.get(userId, id);
+    await this.db.run(
+      'UPDATE cards SET suspended=TRUE,updated_at=$1 WHERE id=$2 AND user_id=$3',
+      [new Date().toISOString(), id, userId],
+    );
+    return this.get(userId, id);
   }
   async unsuspend(userId: string, id: string) {
     await this.get(userId, id);

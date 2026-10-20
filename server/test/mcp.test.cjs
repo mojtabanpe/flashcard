@@ -125,7 +125,36 @@ test('MCP: personal tokens, OAuth PKCE, tool ownership and revocation', async (t
       assert.equal(init.result.serverInfo.name, 'recall');
       const tools = (await (await rpc(key.token, 'tools/list')).json()).result
         .tools;
-      assert.equal(tools.length, 7);
+      assert.deepEqual(
+        tools.map((t) => t.name).sort(),
+        [
+          'list_decks',
+          'get_deck',
+          'create_deck',
+          'update_deck',
+          'delete_deck',
+          'list_cards',
+          'get_card',
+          'search_cards',
+          'create_card',
+          'update_card',
+          'delete_card',
+          'move_card',
+          'review_card',
+          'suspend_card',
+          'unsuspend_card',
+          'list_readings',
+          'get_reading',
+          'create_reading',
+          'update_reading',
+          'delete_reading',
+        ].sort(),
+      );
+      for (const name of ['delete_card', 'delete_deck', 'delete_reading']) {
+        const deletion = tools.find((t) => t.name === name);
+        assert.equal(deletion.annotations.destructiveHint, true);
+        assert.equal(deletion.annotations.readOnlyHint, false);
+      }
       const update = tools.find((t) => t.name === 'update_card');
       assert.equal(update.annotations.readOnlyHint, false);
       assert.equal(update.annotations.idempotentHint, true);
@@ -353,6 +382,223 @@ test('MCP: personal tokens, OAuth PKCE, tool ownership and revocation', async (t
             .text,
         ).find((c) => c.id === created.id);
         assert.deepEqual(final, cleared);
+      },
+    );
+    await t.test(
+      'complete deck, card and reading lifecycle with ownership and scopes',
+      async () => {
+        const value = async (name, args) => {
+          const result = await tool(key.token, name, args);
+          assert.ok(!result.isError, result.content[0].text);
+          return JSON.parse(result.content[0].text);
+        };
+        const managed = await value('create_deck', { name: 'Managed' });
+        assert.equal(managed.color, 'sky');
+        const renamed = await value('update_deck', {
+          deck_id: managed.id,
+          name: 'Renamed',
+        });
+        assert.equal(renamed.name, 'Renamed');
+        assert.equal(
+          (await value('get_deck', { deck_id: managed.id })).id,
+          managed.id,
+        );
+        const card = await value('create_card', {
+          deck_id: managed.id,
+          front: 'UniqueNeedle 100%',
+          back: 'Answer',
+        });
+        assert.deepEqual(await value('get_card', { card_id: card.id }), card);
+        assert.deepEqual(
+          (await value('search_cards', { query: 'uniqueneedle' })).map(
+            (c) => c.id,
+          ),
+          [card.id],
+        );
+        assert.equal(
+          (await value('search_cards', { query: '%', deck_id: managed.id }))
+            .length,
+          1,
+        );
+        assert.equal(
+          (await value('search_cards', { query: 'uniqueneedle', offset: 1 }))
+            .length,
+          0,
+        );
+        assert.equal(
+          (await tool(other.token, 'search_cards', { query: 'uniqueneedle' }))
+            .content[0].text,
+          '[]',
+        );
+        const reviewed = await value('review_card', {
+          card_id: card.id,
+          rating: 'good',
+        });
+        assert.equal(reviewed.repetitions, 1);
+        assert.ok(reviewed.last_reviewed_at);
+        const moved = await value('move_card', {
+          card_id: card.id,
+          deck_id: deck.id,
+        });
+        for (const field of Object.keys(reviewed).filter(
+          (f) => !['deck_id', 'updated_at'].includes(f),
+        )) {
+          assert.deepEqual(moved[field], reviewed[field], field);
+        }
+        assert.equal(moved.deck_id, deck.id);
+        const suspended = await value('suspend_card', { card_id: card.id });
+        assert.equal(suspended.suspended, true);
+        assert.equal(suspended.suspensions, reviewed.suspensions);
+        assert.equal(suspended.due_at, reviewed.due_at);
+        const resumed = await value('unsuspend_card', { card_id: card.id });
+        assert.equal(resumed.suspended, false);
+        assert.equal(resumed.lapses, 0);
+        const passage = await value('create_reading', {
+          title: 'Before',
+          body: 'Keep body',
+        });
+        const edited = await value('update_reading', {
+          id: passage.id,
+          title: ' After ',
+        });
+        assert.equal(edited.title, 'After');
+        assert.equal(edited.body, passage.body);
+        const readOnly = await (
+          await web(
+            '/mcp/tokens',
+            'POST',
+            {
+              name: 'Lifecycle read only',
+              scopes: ['cards:read', 'readings:read'],
+            },
+            a.cookie,
+          )
+        ).json();
+        const mutations = [
+          ['create_deck', { name: 'Denied' }],
+          ['update_deck', { deck_id: managed.id, name: 'Denied' }],
+          ['delete_deck', { deck_id: managed.id }],
+          ['delete_card', { card_id: card.id }],
+          ['move_card', { card_id: card.id, deck_id: foreign.id }],
+          ['review_card', { card_id: card.id, rating: 'again' }],
+          ['suspend_card', { card_id: card.id }],
+          ['unsuspend_card', { card_id: card.id }],
+          ['update_reading', { id: passage.id, body: 'Denied' }],
+          ['delete_reading', { id: passage.id }],
+        ];
+        for (const [name, args] of mutations) {
+          assert.equal(
+            (await tool(readOnly.token, name, args)).isError,
+            true,
+            name + ' scope',
+          );
+          if (name !== 'create_deck') {
+            assert.equal(
+              (await tool(other.token, name, args)).isError,
+              true,
+              name + ' owner',
+            );
+            const missing = Object.fromEntries(
+              Object.entries(args).map(([k, v]) =>
+                ['id', 'card_id', 'deck_id'].includes(k)
+                  ? [k, '00000000-0000-4000-8000-000000000001']
+                  : [k, v],
+              ),
+            );
+            assert.equal(
+              (await tool(key.token, name, missing)).isError,
+              true,
+              name + ' missing',
+            );
+          }
+        }
+        assert.equal(
+          (
+            await tool(key.token, 'move_card', {
+              card_id: card.id,
+              deck_id: foreign.id,
+            })
+          ).isError,
+          true,
+        );
+        for (const name of [
+          'get_card',
+          'get_deck',
+          'search_cards',
+          'get_reading',
+        ]) {
+          const args =
+            name === 'get_card'
+              ? { card_id: card.id }
+              : name === 'get_reading'
+                ? { id: passage.id }
+                : {
+                    deck_id: managed.id,
+                    ...(name === 'search_cards' ? { query: 'x' } : {}),
+                  };
+          assert.equal(
+            (await tool(other.token, name, args)).isError,
+            true,
+            name,
+          );
+        }
+        for (const [name, args] of [
+          ['delete_card', { card_id: 'invalid' }],
+          ['update_deck', { deck_id: managed.id }],
+          ['create_deck', { name: 'x', color: 'invalid' }],
+          ['update_reading', { id: passage.id }],
+          ['update_reading', { id: passage.id, body: ' ' }],
+          ['review_card', { card_id: card.id, rating: 'invalid' }],
+          ['search_cards', { query: ' ' }],
+          ['search_cards', { query: 'x', limit: 101 }],
+          ['search_cards', { query: 'x', offset: -1 }],
+        ]) {
+          const result = await (
+            await rpc(key.token, 'tools/call', { name, arguments: args })
+          ).json();
+          assert.ok(result.error || result.result.isError, name);
+        }
+        assert.deepEqual(
+          await value('get_card', { card_id: card.id }),
+          resumed,
+        );
+        assert.deepEqual(
+          await value('get_reading', { id: passage.id }),
+          edited,
+        );
+        assert.equal(
+          (await value('delete_card', { card_id: card.id })).deleted,
+          true,
+        );
+        assert.equal(
+          (await tool(key.token, 'get_card', { card_id: card.id })).isError,
+          true,
+        );
+        assert.equal(
+          (await value('delete_reading', { id: passage.id })).deleted,
+          true,
+        );
+        assert.equal(
+          (await tool(key.token, 'get_reading', { id: passage.id })).isError,
+          true,
+        );
+        const child = await value('create_card', {
+          deck_id: managed.id,
+          front: 'Cascade',
+          back: 'Delete',
+        });
+        assert.equal(
+          (await value('delete_deck', { deck_id: managed.id })).deleted,
+          true,
+        );
+        assert.equal(
+          (await tool(key.token, 'get_card', { card_id: child.id })).isError,
+          true,
+        );
+        assert.equal(
+          (await tool(key.token, 'get_deck', { deck_id: managed.id })).isError,
+          true,
+        );
       },
     );
     const redirect = 'https://chatgpt.com/connector_platform/oauth_redirect';

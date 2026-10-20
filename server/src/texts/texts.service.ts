@@ -29,6 +29,20 @@ export class TextsService {
     );
     return this.get(userId, id);
   }
+  async update(userId: string, id: string, patch: Partial<CreateTextDto>) {
+    const current = await this.get(userId, id);
+    await this.db.run(
+      'UPDATE texts SET title=$1,body=$2,updated_at=$3 WHERE id=$4 AND user_id=$5',
+      [
+        patch.title?.trim() ?? current.title,
+        patch.body?.trim() ?? current.body,
+        new Date().toISOString(),
+        id,
+        userId,
+      ],
+    );
+    return this.get(userId, id);
+  }
   async remove(userId: string, id: string) {
     await this.get(userId, id);
     await this.db.run('DELETE FROM texts WHERE id=$1 AND user_id=$2', [

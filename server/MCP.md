@@ -22,12 +22,25 @@ No OpenAI API key is needed by this server.
 | Tool | Permission | Inputs |
 | --- | --- | --- |
 | `list_decks` | `cards:read` | none |
+| `get_deck` | `cards:read` | `deck_id` |
+| `create_deck` | `cards:write` | `name`, optional `description`, `color` (default `sky`) |
+| `update_deck` | `cards:write` | `deck_id`, at least one of `name`, `description`, `color` |
+| `delete_deck` | `cards:write` | `deck_id`; permanently deletes all cards in the deck too |
+| `get_card` | `cards:read` | `card_id` |
+| `search_cards` | `cards:read` | `query`, optional `deck_id`, `limit` (1–100, default 50), `offset` |
+| `delete_card` | `cards:write` | `card_id`; permanent |
+| `move_card` | `cards:write` | `card_id`, destination `deck_id` |
+| `review_card` | `cards:write` | `card_id`, `rating`: `again`, `hard`, `good`, `easy` |
+| `suspend_card` | `cards:write` | `card_id` |
+| `unsuspend_card` | `cards:write` | `card_id`; resets lapses to zero |
 | `list_cards` | `cards:read` | `deck_id`, optional `due_only` |
 | `create_card` | `cards:write` | `deck_id`, `front`, `back`, optional `unit`, `examples` |
 | `update_card` | `cards:write` | `card_id`, at least one of `front`, `back`, `unit`, `examples` |
 | `list_readings` | `readings:read` | none |
 | `get_reading` | `readings:read` | `id` |
 | `create_reading` | `readings:write` | `title`, `body` |
+| `update_reading` | `readings:write` | `id`, at least one of `title`, `body` |
+| `delete_reading` | `readings:write` | `id`; permanent |
 
 Creation tools are non-idempotent: retrying a completed call creates another item.
 Use `list_cards` to find an existing card's ID, then `update_card` to replace only
@@ -36,7 +49,17 @@ must stay nonempty; use `""` to clear `unit` or `examples`. Updates preserve the
 card ID, deck, creation date, review counts, ease, suspension state and schedule.
 For example, to remove a Persian translation from an answer, send the same
 `card_id` with the remaining answer in `back`; do not recreate the card.
-No delete or review/scheduling tools are exposed.
+`search_cards` matches a case-insensitive literal substring across front, back,
+examples and unit, scoped to the token owner. Page results with `limit` and `offset`.
+`move_card` preserves content and review state and requires ownership of both card
+and destination deck. Manual suspension hides a card without increasing its leech
+suspension count; unsuspension uses the app's existing behavior (clears lapses).
+`review_card` uses the existing scheduler and can suspend leeches. Only submit
+ratings supplied by the user; repeating a successful review advances it again.
+Deletes are permanent. Deleting a deck also deletes all of its cards and review
+state. Mutation tools advertise destructive/idempotent hints as appropriate.
+Existing scope names are unchanged; new tools use the same owner-scoped permissions.
+After deployment, clients may need to refresh their cached tool list.
 
 ## Tokens and authentication
 
