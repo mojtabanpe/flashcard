@@ -15,9 +15,12 @@
             [attr.aria-selected]="mode() === 'reading'" (click)="setMode('reading')">Reading</button>
   </div>
 
-  @if (mode() === 'reading') {
-    <app-texts [embedded]="true" />
-  } @else {
+  @if (readingOpened()) {
+    <div [hidden]="mode() !== 'reading'">
+      <app-texts [embedded]="true" />
+    </div>
+  }
+  @if (mode() !== 'reading') {
   <section class="panel setup">
     <div class="setup__row">
       <div class="field">

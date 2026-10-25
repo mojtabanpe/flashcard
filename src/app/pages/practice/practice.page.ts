@@ -93,7 +93,13 @@ export class PracticePage {
         this.recordingUrl.set(URL.createObjectURL(audio));
         this.transcribing.set(true);
         this.practice.transcribe(audio).then(result => {
-          if (run === this.recordingRun) { this.answer.set(result.text); this.feedback.set(null); }
+          if (run === this.recordingRun) {
+            if (this.mode() === 'speaking') { this.answer.set(result.text); this.feedback.set(null); }
+            else {
+              const draft = this.drafts.get('speaking');
+              if (draft) this.drafts.set('speaking', { ...draft, answer: result.text, feedback: null });
+            }
+          }
         }).catch(e => { if (run === this.recordingRun) this.error.set(e?.message ?? 'Could not transcribe your answer.'); })
           .finally(() => { if (run === this.recordingRun) this.transcribing.set(false); });
       };
@@ -113,6 +119,7 @@ export class PracticePage {
   }
 
   private cancelRecording(clearAudio = true) {
+    if (!clearAudio && this.transcribing() && !this.recording()) return;
     this.recordingRun++;
     clearTimeout(this.timer);
     if (this.recorder?.state === 'recording') this.recorder.stop();
@@ -141,6 +148,9 @@ export class PracticePage {
   protected readonly added = signal<ReadonlySet<string>>(new Set());
   /** Ignores an answer that arrives after the user switched or asked again. */
   private run = 0;
+  private readonly requests = new Map<string, number>();
+  private readonly pendingModes = new Set<string>();
+  protected readonly readingOpened = signal(false);
   private taskSituation: ConversationSituation = 'small-talk';
   private taskLevel: ReadingLevel = 'B1';
 
@@ -159,9 +169,9 @@ export class PracticePage {
     });
     this.stop();
     this.cancelRecording(false);
-    this.run++;
-    this.busy.set(false);
+    this.busy.set(this.pendingModes.has(mode));
     this.error.set('');
+    if (mode === 'reading') this.readingOpened.set(true);
     const draft = this.drafts.get(mode);
     this.task.set(draft?.task ?? null);
     this.answer.set(draft?.answer ?? '');
@@ -180,7 +190,7 @@ export class PracticePage {
         this.switchMode(mode);
       }
     });
-    inject(DestroyRef).onDestroy(() => { this.run++; this.stop(); this.cancelRecording(); });
+    inject(DestroyRef).onDestroy(() => { this.requests.clear(); this.run++; this.stop(); this.cancelRecording(); });
     this.decksSvc
       .listWithStats()
       .then((decks) => {
@@ -195,18 +205,25 @@ export class PracticePage {
     void this.router.navigate([], { relativeTo: this.route, queryParams: { mode }, queryParamsHandling: 'merge' });
   }
 
-  private async load<T>(request: () => Promise<T>, apply: (value: T) => void) {
+  private async load<T>(request: () => Promise<T>, apply: (value: T, mode: string) => void) {
     const run = ++this.run;
+    const mode = this.mode();
+    this.requests.set(mode, run);
+    this.pendingModes.add(mode);
     this.stop();
     this.error.set('');
     this.busy.set(true);
     try {
       const value = await request();
-      if (run === this.run) apply(value);
+      if (this.requests.get(mode) === run) apply(value, mode);
     } catch (e: any) {
-      if (run === this.run) this.error.set(e?.message ?? 'Something went wrong. Try again.');
+      if (this.requests.get(mode) === run && this.mode() === mode)
+        this.error.set(e?.message ?? 'Something went wrong. Try again.');
     } finally {
-      if (run === this.run) this.busy.set(false);
+      if (this.requests.get(mode) === run) {
+        this.pendingModes.delete(mode);
+        if (this.mode() === mode) this.busy.set(false);
+      }
     }
   }
 
@@ -215,7 +232,12 @@ export class PracticePage {
     const situation = this.situation(), level = this.level();
     return this.load(
       () => this.practice.writingTask(situation, level),
-      (task) => {
+      (task, mode) => {
+        if (mode !== this.mode()) {
+          const draft = this.drafts.get(mode);
+          if (draft) this.drafts.set(mode, { ...draft, task, answer: '', feedback: null, taskSituation: situation, taskLevel: level });
+          return;
+        }
         this.taskSituation = situation;
         this.taskLevel = level;
         this.task.set(task);
@@ -235,7 +257,13 @@ export class PracticePage {
     }
     return this.load(
       () => this.practice.writingFeedback(this.taskSituation, this.taskLevel, task, answer),
-      (feedback) => this.feedback.set(feedback),
+      (feedback, mode) => {
+        if (mode === this.mode()) this.feedback.set(feedback);
+        else {
+          const draft = this.drafts.get(mode);
+          if (draft) this.drafts.set(mode, { ...draft, feedback });
+        }
+      },
     );
   }
 

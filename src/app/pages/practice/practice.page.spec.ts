@@ -38,6 +38,17 @@ describe('Practice tab drafts', () => {
     page.setMode('writing');
     expect(page.task().scenario).toBe('Text a friend.');
     expect(page.answer()).toBe('Yes, see you tonight.');
+    let resolveTask!: (value: { scenario: string; message: string }) => void;
+    service.writingTask.mockImplementationOnce(() => new Promise(resolve => { resolveTask = resolve; }));
+    page.setMode('speaking');
+    const pending = page.newTask();
+    page.setMode('writing');
+    resolveTask({ scenario: 'Ask for directions.', message: 'Where are you going?' });
+    await pending;
+    expect(page.task().scenario).toBe('Text a friend.');
+    page.setMode('speaking');
+    expect(page.task().scenario).toBe('Ask for directions.');
+    expect(page.busy()).toBe(false);
     fixture.destroy();
   });
 });
