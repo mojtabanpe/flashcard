@@ -10,9 +10,11 @@ import { AuthModule } from './auth/auth.module';
 import { DecksModule } from './decks/decks.module';
 import { CardsModule } from './cards/cards.module';
 import { McpModule } from './mcp/mcp.module';
+import { MailModule } from './mail/mail.module';
 @Module({
   imports: [
     DatabaseModule,
+    MailModule,
     ThrottlerModule.forRoot([{ ttl: 60000, limit: 300 }]),
     AuthModule,
     DecksModule,

@@ -1,11 +1,15 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { compare, hash } from 'bcryptjs';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { DatabaseService } from '../database/database.service';
+import { MailService } from '../mail/mail.service';
 export interface User {
   id: string;
   email: string;
@@ -17,11 +21,16 @@ interface UserRow extends User {
 }
 export const sessionCookie = 'recall_session';
 const lifetime = 30 * 24 * 60 * 60 * 1000;
+const resetLifetime = 60 * 60 * 1000;
 const digest = (token: string) =>
   createHash('sha256').update(token).digest('hex');
 @Injectable()
 export class AuthService {
-  constructor(private readonly db: DatabaseService) {}
+  private readonly logger = new Logger(AuthService.name);
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly mail: MailService,
+  ) {}
   async signUp(email: string, password: string) {
     email = email.trim().toLowerCase();
     if (await this.db.one('SELECT id FROM users WHERE lower(email) = $1', [email]))
@@ -85,6 +94,133 @@ export class AuthService {
     )
       return null;
     return { id: row.id, email: row.email };
+  }
+  /** Change the password and sign out every other session of this user. */
+  async changePassword(
+    user: User,
+    currentPassword: string,
+    newPassword: string,
+    token?: string,
+  ) {
+    const row = await this.db.one<UserRow>(
+      'SELECT password_hash FROM users WHERE id=$1',
+      [user.id],
+    );
+    if (!row || !(await compare(currentPassword, row.password_hash)))
+      throw new BadRequestException('Current password is incorrect.');
+    const passwordHash = await hash(newPassword, 12);
+    await this.db.transaction(async (client) => {
+      await client.query('UPDATE users SET password_hash=$1 WHERE id=$2', [
+        passwordHash,
+        user.id,
+      ]);
+      await client.query(
+        'DELETE FROM sessions WHERE user_id=$1 AND token_hash<>$2',
+        [user.id, token ? digest(token) : ''],
+      );
+      await client.query('DELETE FROM password_resets WHERE user_id=$1', [
+        user.id,
+      ]);
+    });
+    this.notify(user.email, 'Your Recall password was changed');
+  }
+  /**
+   * Email a single-use reset link. Runs in the background and answers the
+   * same way for unknown accounts, so the response does not reveal them.
+   */
+  requestPasswordReset(email: string) {
+    if (!this.mail.enabled)
+      throw new ServiceUnavailableException(
+        'Password reset by email is not available.',
+      );
+    this.sendResetLink(email).catch((error: Error) =>
+      this.logger.error('Password reset email failed: ' + error.message),
+    );
+  }
+  private async sendResetLink(email: string) {
+    const row = await this.db.one<UserRow>(
+      'SELECT id,email,banned_until,deleted_at FROM users WHERE lower(email)=$1',
+      [email.trim().toLowerCase()],
+    );
+    if (
+      !row ||
+      row.deleted_at ||
+      (row.banned_until && Date.parse(row.banned_until) > Date.now())
+    )
+      return;
+    const token = randomBytes(32).toString('base64url');
+    await this.db.run('DELETE FROM password_resets WHERE expires_at <= $1', [
+      Date.now(),
+    ]);
+    await this.db.run('INSERT INTO password_resets VALUES ($1,$2,$3)', [
+      digest(token),
+      row.id,
+      Date.now() + resetLifetime,
+    ]);
+    const link = new URL('/reset-password', this.mail.appUrl);
+    link.searchParams.set('token', token);
+    await this.mail.send({
+      to: row.email,
+      subject: 'Reset your Recall password',
+      text: [
+        'Someone asked to reset the password for your Recall account.',
+        '',
+        'Choose a new password here (the link works once, for one hour):',
+        link.href,
+        '',
+        'If this wasn’t you, ignore this email; your password stays the same.',
+      ].join('\n'),
+    });
+  }
+  /** Use a reset token once: set the password and sign out every session. */
+  async resetPassword(token: string, password: string) {
+    const passwordHash = await hash(password, 12);
+    const user = await this.db.transaction(async (client) => {
+      const reset = await client.query<UserRow>(
+        `DELETE FROM password_resets r USING users u
+        WHERE r.token_hash=$1 AND r.expires_at>$2 AND u.id=r.user_id
+        RETURNING u.id,u.email,u.banned_until,u.deleted_at`,
+        [digest(token), Date.now()],
+      );
+      const row = reset.rows[0];
+      if (
+        !row ||
+        row.deleted_at ||
+        (row.banned_until && Date.parse(row.banned_until) > Date.now())
+      )
+        return null;
+      await client.query('UPDATE users SET password_hash=$1 WHERE id=$2', [
+        passwordHash,
+        row.id,
+      ]);
+      await client.query('DELETE FROM sessions WHERE user_id=$1', [row.id]);
+      await client.query('DELETE FROM password_resets WHERE user_id=$1', [
+        row.id,
+      ]);
+      return row;
+    });
+    if (!user)
+      throw new BadRequestException(
+        'This reset link is invalid or has expired.',
+      );
+    this.notify(user.email, 'Your Recall password was reset');
+  }
+  /** Security notice; a mail failure must not undo the password change. */
+  private notify(email: string, subject: string) {
+    this.mail
+      .send({
+        to: email,
+        subject,
+        text: [
+          subject + ' and other devices were signed out.',
+          '',
+          'If this wasn’t you, reset your password now: ' +
+            new URL('/login', this.mail.appUrl).href,
+        ].join('\n'),
+      })
+      .catch((error: Error) =>
+        this.logger.error('Password notice failed: ' + error.message),
+      );
   }
   async signOut(token?: string) {
     if (token)

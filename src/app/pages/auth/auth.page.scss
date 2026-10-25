@@ -116,6 +116,16 @@
   font-size: 2rem;
   margin: 10px 0 28px;
 }
+.auth__note {
+  margin: 0 0 20px;
+  color: var(--ink-soft);
+  line-height: 1.6;
+}
+.auth__forgot {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
 .auth__switch {
   margin-top: 24px;
   font-size: 0.9rem;

@@ -1,0 +1,38 @@
+<div class="container page">
+  <div class="account-head">
+    <h1 class="account-title">Account</h1>
+    <p class="account-intro">Signed in as <strong>{{ auth.user()?.email }}</strong></p>
+  </div>
+
+  <section class="panel account-card" aria-labelledby="change-password">
+    <h2 id="change-password" class="account-card__title">Change password</h2>
+    <p class="account-card__note">
+      Other devices are signed out, and we email you a notice of the change.
+    </p>
+    <form (ngSubmit)="submit()">
+      <div class="field">
+        <label for="current-password">Current password</label>
+        <input id="current-password" class="input" type="password" autocomplete="current-password"
+               [ngModel]="current()" (ngModelChange)="current.set($event)" name="current" />
+      </div>
+      <div class="field" style="margin-top: 16px">
+        <label for="new-password">New password</label>
+        <input id="new-password" class="input" type="password" autocomplete="new-password"
+               placeholder="at least 6 characters"
+               [ngModel]="password()" (ngModelChange)="password.set($event)" name="password" />
+      </div>
+      <div class="field" style="margin-top: 16px">
+        <label for="confirm-password">Repeat new password</label>
+        <input id="confirm-password" class="input" type="password" autocomplete="new-password"
+               [ngModel]="confirm()" (ngModelChange)="confirm.set($event)" name="confirm" />
+      </div>
+      <button class="btn btn--accent" type="submit" [disabled]="busy()" style="margin-top: 24px">
+        @if (busy()) {
+          <span class="spinner" style="width:18px;height:18px;border-width:2px"></span>
+        } @else {
+          Change password
+        }
+      </button>
+    </form>
+  </section>
+</div>

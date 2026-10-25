@@ -8,6 +8,16 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/auth/auth.page').then((m) => m.AuthPage),
   },
   {
+    path: 'reset-password',
+    loadComponent: () =>
+      import('./pages/reset-password/reset-password.page').then((m) => m.ResetPasswordPage),
+  },
+  {
+    path: 'account',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/account/account.page').then((m) => m.AccountPage),
+  },
+  {
     path: '',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/decks/decks.page').then((m) => m.DecksPage),

@@ -31,6 +31,20 @@ export class AuthService {
     });
     this._user.set(result.user);
   }
+  async changePassword(currentPassword: string, newPassword: string) {
+    await this.api.request('POST', '/auth/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+  }
+  async forgotPassword(email: string) {
+    await this.api.request('POST', '/auth/forgot-password', { email });
+  }
+  /** Resetting signs out every session, including this one. */
+  async resetPassword(token: string, password: string) {
+    await this.api.request('POST', '/auth/reset-password', { token, password });
+    this._user.set(null);
+  }
   async signOut() {
     await this.api.request('POST', '/auth/signout', {});
     this._user.set(null);

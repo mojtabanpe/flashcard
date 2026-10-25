@@ -28,42 +28,62 @@
   <!-- Right: form -->
   <section class="auth__form-wrap">
     <div class="auth__form rise">
-      <span class="kicker">{{ mode() === 'signin' ? 'Welcome back' : 'Create account' }}</span>
-      <h2 class="auth__title">
-        {{ mode() === 'signin' ? 'Sign in to Recall' : 'Start your collection' }}
-      </h2>
+      <span class="kicker">{{ copy().kicker }}</span>
+      <h2 class="auth__title">{{ copy().title }}</h2>
 
-      <form (ngSubmit)="submit()">
-        <div class="field">
-          <label for="email">Email</label>
-          <input id="email" class="input" type="email" autocomplete="email"
-                 placeholder="you@example.com"
-                 [ngModel]="email()" (ngModelChange)="email.set($event)" name="email" />
-        </div>
-
-        <div class="field" style="margin-top: 16px">
-          <label for="password">Password</label>
-          <input id="password" class="input" type="password"
-                 [attr.autocomplete]="mode() === 'signin' ? 'current-password' : 'new-password'"
-                 placeholder="at least 6 characters"
-                 [ngModel]="password()" (ngModelChange)="password.set($event)" name="password" />
-        </div>
-
-        <button class="btn btn--accent btn--block btn--lg" type="submit" [disabled]="busy()"
-                style="margin-top: 26px">
-          @if (busy()) {
-            <span class="spinner" style="width:18px;height:18px;border-width:2px"></span>
-          } @else {
-            {{ mode() === 'signin' ? 'Sign in' : 'Create account' }}
+      @if (mode() === 'forgot' && sent()) {
+        <p class="auth__note" role="status">
+          If an account exists for <strong>{{ email() }}</strong>, we've sent it a link to choose a
+          new password. The link works once, for one hour.
+        </p>
+      } @else {
+        <form (ngSubmit)="submit()">
+          @if (mode() === 'forgot') {
+            <p class="auth__note">Enter your account email and we'll send you a reset link.</p>
           }
-        </button>
-      </form>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" class="input" type="email" autocomplete="email"
+                   placeholder="you@example.com"
+                   [ngModel]="email()" (ngModelChange)="email.set($event)" name="email" />
+          </div>
+
+          @if (mode() !== 'forgot') {
+            <div class="field" style="margin-top: 16px">
+              <label for="password">Password</label>
+              <input id="password" class="input" type="password"
+                     [attr.autocomplete]="mode() === 'signin' ? 'current-password' : 'new-password'"
+                     placeholder="at least 6 characters"
+                     [ngModel]="password()" (ngModelChange)="password.set($event)" name="password" />
+            </div>
+          }
+          @if (mode() === 'signin') {
+            <div class="auth__forgot">
+              <button type="button" class="auth__link" (click)="setMode('forgot')">Forgot password?</button>
+            </div>
+          }
+
+          <button class="btn btn--accent btn--block btn--lg" type="submit" [disabled]="busy()"
+                  [style.margin-top.px]="mode() === 'signin' ? 10 : 26">
+            @if (busy()) {
+              <span class="spinner" style="width:18px;height:18px;border-width:2px"></span>
+            } @else {
+              {{ copy().action }}
+            }
+          </button>
+        </form>
+      }
 
       <p class="auth__switch">
-        {{ mode() === 'signin' ? 'New here?' : 'Already have an account?' }}
-        <button type="button" class="auth__link" (click)="toggle()">
-          {{ mode() === 'signin' ? 'Create an account' : 'Sign in' }}
-        </button>
+        @if (mode() === 'forgot') {
+          Remembered it?
+          <button type="button" class="auth__link" (click)="setMode('signin')">Back to sign in</button>
+        } @else {
+          {{ mode() === 'signin' ? 'New here?' : 'Already have an account?' }}
+          <button type="button" class="auth__link" (click)="toggle()">
+            {{ mode() === 'signin' ? 'Create an account' : 'Sign in' }}
+          </button>
+        }
       </p>
     </div>
   </section>

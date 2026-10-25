@@ -24,7 +24,7 @@ export function createPool(url = databaseUrl(), schema = databaseSchema()) {
     options: `-c search_path=${schema}`,
   });
 }
-export const schemaVersion = 1;
+export const schemaVersion = 2;
 export async function migrate(db: Queryable, schema = databaseSchema()) {
   await db.query(`
     CREATE SCHEMA IF NOT EXISTS ${schema};
@@ -39,6 +39,11 @@ export async function migrate(db: Queryable, schema = databaseSchema()) {
       expires_at BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires_at);
+    CREATE TABLE IF NOT EXISTS password_resets (
+      token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS password_resets_owner ON password_resets(user_id);
     CREATE TABLE IF NOT EXISTS mcp_keys (
       id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, scopes TEXT[] NOT NULL,
