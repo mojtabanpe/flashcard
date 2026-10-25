@@ -112,14 +112,14 @@ export class PracticePage {
     this.recordingUrl.set('');
   }
 
-  private cancelRecording() {
+  private cancelRecording(clearAudio = true) {
     this.recordingRun++;
     clearTimeout(this.timer);
     if (this.recorder?.state === 'recording') this.recorder.stop();
     this.stream?.getTracks().forEach(t => t.stop());
     this.recording.set(false);
     this.transcribing.set(false);
-    this.clearRecordingUrl();
+    if (clearAudio) this.clearRecordingUrl();
   }
 
   // writing
@@ -144,12 +144,40 @@ export class PracticePage {
   private taskSituation: ConversationSituation = 'small-talk';
   private taskLevel: ReadingLevel = 'B1';
 
+  private readonly drafts = new Map<string, {
+    task: WritingTask | null; answer: string; feedback: WritingFeedback | null;
+    situation: ConversationSituation; level: ReadingLevel;
+    taskSituation: ConversationSituation; taskLevel: ReadingLevel;
+  }>();
+
+  private switchMode(mode: 'writing' | 'listening' | 'speaking' | 'reading') {
+    if (mode === this.mode()) return;
+    this.drafts.set(this.mode(), {
+      task: this.task(), answer: this.answer(), feedback: this.feedback(),
+      situation: this.situation(), level: this.level(),
+      taskSituation: this.taskSituation, taskLevel: this.taskLevel,
+    });
+    this.stop();
+    this.cancelRecording(false);
+    this.run++;
+    this.busy.set(false);
+    this.error.set('');
+    const draft = this.drafts.get(mode);
+    this.task.set(draft?.task ?? null);
+    this.answer.set(draft?.answer ?? '');
+    this.feedback.set(draft?.feedback ?? null);
+    this.situation.set(draft?.situation ?? 'small-talk');
+    this.level.set(draft?.level ?? 'B1');
+    this.taskSituation = draft?.taskSituation ?? 'small-talk';
+    this.taskLevel = draft?.taskLevel ?? 'B1';
+    this.mode.set(mode);
+  }
+
   constructor() {
     this.route.queryParamMap.pipe(takeUntilDestroyed()).subscribe(params => {
       const mode = params.get('mode');
       if (mode === 'reading' || mode === 'writing' || mode === 'speaking' || mode === 'listening') {
-        if (mode !== this.mode()) { this.stop(); this.cancelRecording(); this.run++; this.busy.set(false); }
-        this.mode.set(mode);
+        this.switchMode(mode);
       }
     });
     inject(DestroyRef).onDestroy(() => { this.run++; this.stop(); this.cancelRecording(); });
@@ -163,15 +191,7 @@ export class PracticePage {
   }
 
   protected setMode(mode: 'writing' | 'listening' | 'speaking' | 'reading') {
-    this.stop();
-    this.run++;
-    this.busy.set(false);
-    this.error.set('');
-    this.cancelRecording();
-    this.task.set(null);
-    this.feedback.set(null);
-    this.answer.set('');
-    this.mode.set(mode);
+    this.switchMode(mode);
     void this.router.navigate([], { relativeTo: this.route, queryParams: { mode }, queryParamsHandling: 'merge' });
   }
 

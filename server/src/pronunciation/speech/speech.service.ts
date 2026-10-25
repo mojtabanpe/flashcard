@@ -32,7 +32,7 @@ export class SpeechService {
     const endpoint =
       process.env['TTS_URL'] ?? 'http://127.0.0.1:20128/v1/audio/speech';
     const model =
-      process.env['TTS_MODEL'] ?? 'edge-tts/en-AU-WilliamMultilingualNeural';
+      process.env['TTS_MODEL'] ?? 'edge-tts/en-US-MichelleNeural';
     const normalized = text.trim(),
       key = speechCacheKey(userId, endpoint, model, normalized);
     const running = this.pending.get(key);

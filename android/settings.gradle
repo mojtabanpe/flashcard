@@ -1,0 +1,16 @@
+pluginManagement {
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == 'com.android.application') {
+                useModule("com.android.tools.build:gradle:${requested.version}")
+            }
+        }
+    }
+    repositories { maven { url 'https://repo.maven.apache.org/maven2' }; google(); gradlePluginPortal() }
+}
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories { google(); mavenCentral() }
+}
+rootProject.name = 'Recall'
+include ':app'

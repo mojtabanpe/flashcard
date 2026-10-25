@@ -52,8 +52,8 @@
 .phrases__body span { color: var(--ink-soft); font-size: .9rem; }
 @media (max-width: 600px) {
   .setup__row { grid-template-columns: 1fr; }
-  .tabs { display: flex; }
-  .tabs__tab { flex: 1; }
+  .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .tabs__tab { min-width: 0; padding-inline: 8px; }
   .lines__line { grid-template-columns: 1fr auto; }
   .lines__speaker { grid-column: 1 / -1; }
 }
