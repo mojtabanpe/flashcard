@@ -47,6 +47,12 @@ export class ReaderPage {
   protected readonly decks = signal<DeckWithStats[]>([]);
   protected readonly loading = signal(true);
 
+  // rating of an AI-written text
+  protected readonly stars = [1, 2, 3, 4, 5];
+  protected readonly rating = signal(0);
+  protected readonly note = signal('');
+  protected readonly savingReview = signal(false);
+
   // read aloud
   protected readonly reading = signal(false);
   protected readonly chunk = signal(-1);
@@ -81,6 +87,8 @@ export class ReaderPage {
     try {
       const [text, decks] = await Promise.all([this.textsSvc.get(this.id()), this.decksSvc.listWithStats()]);
       this.text.set(text);
+      this.rating.set(text.rating ?? 0);
+      this.note.set(text.review_note);
       this.doc.set(parseReading(text.body));
       this.decks.set(decks);
     } catch (e: any) {
@@ -88,6 +96,23 @@ export class ReaderPage {
       this.router.navigateByUrl('/read');
     } finally {
       this.loading.set(false);
+    }
+  }
+
+  protected async saveReview() {
+    const text = this.text();
+    if (!text || !this.rating()) {
+      this.toast.error('Choose a star rating first.');
+      return;
+    }
+    this.savingReview.set(true);
+    try {
+      this.text.set(await this.textsSvc.review(text.id, this.rating(), this.note().trim()));
+      this.toast.success('Thanks! Your next text will take this into account.');
+    } catch (e: any) {
+      this.toast.error(e?.message ?? 'Could not save your rating.');
+    } finally {
+      this.savingReview.set(false);
     }
   }
 

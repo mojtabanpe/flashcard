@@ -95,6 +95,33 @@ test('authenticated card-answer proxy to the 9Router chat endpoint', async t => 
       reply = 'Too short';
       assert.equal((await call('/ai/reading-text', { topic: 'sports' }, cookie)).status, 502);
     });
+    await t.test('rates AI texts and writes the next one from the latest rated text\'s notes', async () => {
+      status = 200;
+      const words = Array(950).fill('word').join(' ');
+      reply = 'Second Draft\n\n' + words + '.\n\n' + words + '.';
+      const patch = (id, body) => fetch(base + '/api/texts/' + id + '/review', { method: 'PATCH', headers: {
+        'Content-Type': 'application/json', 'X-Recall-Client': 'web', Cookie: cookie }, body: JSON.stringify(body) });
+      const make = async (title, ai) => (await (await call('/texts', { title, body: 'Some body.', ...(ai ? { ai } : {}) }, cookie)).json());
+      const first = await make('Old Rated', true), manual = await make('Typed By Hand', false), latest = await make('Newest Rated', true);
+      assert.equal(first.ai, true); assert.equal(first.rating, null);
+      assert.equal((await patch(manual.id, { rating: 4 })).status, 400);
+      for (const bad of [{ rating: 0 }, { rating: 6 }, { rating: 2.5 }, { note: 'x' }])
+        assert.equal((await patch(first.id, bad)).status, 400);
+      seen = [];
+      await call('/ai/reading-text', { topic: 'travel' }, cookie);
+      assert.equal(seen[0].body.messages[1].content, 'Topic: Travel\nLevel: B2 (upper-intermediate)', 'no rated text yet');
+      assert.equal((await patch(first.id, { rating: 2, note: 'Too many idioms.' })).status, 200);
+      const rated = await (await patch(latest.id, { rating: 5, note: '  Loved the short paragraphs.  ' })).json();
+      assert.equal(rated.rating, 5);
+      assert.equal(rated.review_note, 'Loved the short paragraphs.');
+      const response = await call('/ai/reading-text', { topic: 'travel' }, cookie);
+      assert.equal((await response.json()).feedback_from, 'Newest Rated');
+      const prompt = seen[1].body.messages[1].content;
+      assert.match(prompt, /rated their previous text "Newest Rated" 5 out of 5/);
+      assert.match(prompt, /Loved the short paragraphs\./);
+      assert.doesNotMatch(prompt, /Too many idioms/);
+      assert.match(prompt, /extra care/);
+    });
   } finally {
     await app.close();
     await new Promise(resolve => upstream.close(resolve));

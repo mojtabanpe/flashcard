@@ -31,3 +31,12 @@
   .lookup { max-width: none; border-radius: 20px 20px 0 0; max-height: 88dvh; padding-bottom: max(22px, env(safe-area-inset-bottom)); }
   .lookup__meta { grid-template-columns: 1fr 110px; }
 }
+
+.review { max-width: 72ch; margin-top: 20px; padding: 24px clamp(20px, 5vw, 48px); }
+.review__title { font-size: 1.3rem; margin: 0 0 6px; }
+.review__hint { color: var(--ink-soft); font-size: .9rem; margin: 0 0 14px; }
+.review__stars { display: flex; gap: 4px; margin-bottom: 16px; }
+.review__star { width: 44px; height: 44px; border: 0; background: none; font-size: 1.9rem; line-height: 1; cursor: pointer; color: var(--ink-soft); border-radius: 10px; }
+.review__star.is-on { color: #e0a800; }
+.review__star:hover { background: var(--paper-2); }
+.review .field { margin-bottom: 16px; }

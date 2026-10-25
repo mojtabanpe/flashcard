@@ -12,6 +12,8 @@ export interface CardAnswer {
 export interface GeneratedText {
   title: string;
   body: string;
+  /** Title of the rated text whose notes shaped this one. */
+  feedback_from?: string;
 }
 
 /**

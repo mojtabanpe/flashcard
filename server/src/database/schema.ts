@@ -94,6 +94,10 @@ export async function migrate(db: Queryable, schema = databaseSchema()) {
       id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       title TEXT NOT NULL, body TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL
     );
+    ALTER TABLE texts ADD COLUMN IF NOT EXISTS ai BOOLEAN NOT NULL DEFAULT false;
+    ALTER TABLE texts ADD COLUMN IF NOT EXISTS rating SMALLINT CHECK (rating BETWEEN 1 AND 5);
+    ALTER TABLE texts ADD COLUMN IF NOT EXISTS review_note TEXT NOT NULL DEFAULT '';
+    ALTER TABLE texts ADD COLUMN IF NOT EXISTS rated_at TIMESTAMPTZ;
     CREATE INDEX IF NOT EXISTS texts_owner ON texts(user_id, created_at);
     -- Raw rows from the original Supabase export, kept for audit.
     CREATE TABLE IF NOT EXISTS migration_archive (

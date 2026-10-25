@@ -52,6 +52,12 @@ export interface ReadingText {
   body: string;
   created_at: string;
   updated_at: string;
+  /** Written by AI; only these texts are rated. */
+  ai: boolean;
+  /** 1-5 stars, or null until rated. */
+  rating: number | null;
+  review_note: string;
+  rated_at: string | null;
 }
 
 /** Topics offered when generating a reading text with AI. */

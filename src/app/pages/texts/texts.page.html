@@ -28,7 +28,7 @@
           <a class="text-row__body" [routerLink]="['/read', text.id]">
             <h2 class="text-row__title">{{ text.title }}</h2>
             <p class="text-row__preview">{{ text.body }}</p>
-            <span class="kicker">{{ wordCount(text) }} words</span>
+            <span class="kicker">{{ wordCount(text) }} words@if (text.rating) { · {{ '★'.repeat(text.rating) }}{{ '☆'.repeat(5 - text.rating) }}<span class="sr-only"> rated {{ text.rating }} of 5</span>}</span>
           </a>
           <button class="btn btn--ghost btn--sm btn--danger" (click)="remove(text)" [attr.aria-label]="'Delete ' + text.title">
             <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -76,6 +76,9 @@
         </div>
         @if (generating()) {
           <p class="ai-gen__status" role="status">Writing your text. This can take up to a minute.</p>
+        }
+        @if (feedbackFrom() && !generating()) {
+          <p class="ai-gen__status" role="status">Written with your notes on “{{ feedbackFrom() }}” in mind.</p>
         }
       </section>
 

@@ -34,6 +34,29 @@
             [class.is-reading]="readingSentences().has(token.sentence)">{{ token.text }}</span>}}</p>
       }
     </article>
+
+    @if (t.ai) {
+      <section class="panel review" aria-labelledby="review-title">
+        <h2 id="review-title" class="review__title">How was this text?</h2>
+        <p class="review__hint">Your rating and notes shape the next text AI writes for you.</p>
+        <div class="review__stars" role="group" aria-label="Rating">
+          @for (n of stars; track n) {
+            <button type="button" class="review__star" [class.is-on]="n <= rating()"
+                    [attr.aria-pressed]="n === rating()" [attr.aria-label]="n + (n === 1 ? ' star' : ' stars')"
+                    (click)="rating.set(n)">{{ n <= rating() ? '★' : '☆' }}</button>
+          }
+        </div>
+        <div class="field">
+          <label for="review-note">Notes (optional)</label>
+          <textarea id="review-note" class="textarea" rows="3" maxlength="2000"
+                    placeholder="What worked, what should change: topic, difficulty, length, style…"
+                    [ngModel]="note()" (ngModelChange)="note.set($event)"></textarea>
+        </div>
+        <button class="btn btn--accent" (click)="saveReview()" [disabled]="savingReview()">
+          {{ savingReview() ? 'Saving…' : t.rating ? 'Update rating' : 'Save rating' }}
+        </button>
+      </section>
+    }
   }
 </div>
 

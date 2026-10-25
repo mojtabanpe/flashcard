@@ -17,7 +17,7 @@ const tables: Record<string, { key: string[]; timestamps: string[]; booleans?: s
     timestamps: ['due_at', 'last_reviewed_at', 'created_at', 'updated_at'],
     booleans: ['suspended'],
   },
-  texts: { key: ['id'], timestamps: ['created_at', 'updated_at'] },
+  texts: { key: ['id'], timestamps: ['created_at', 'updated_at', 'rated_at'], booleans: ['ai'] },
   migration_archive: { key: ['table_name', 'row_index'], timestamps: [] },
   migration_manifest: { key: ['id'], timestamps: [] },
 };
@@ -32,7 +32,13 @@ function readSource(db: DatabaseSync, table: string): Row[] {
     .prepare(`SELECT * FROM ${table} ORDER BY ${key.join(',')}`)
     .all()
     // Accounts from before email confirmation existed count as confirmed.
-    .map((row) => (table === 'users' ? { ...row, email_verified_at: row['created_at'] } : { ...row }));
+    .map((row) =>
+      table === 'users'
+        ? { ...row, email_verified_at: row['created_at'] }
+        : table === 'texts'
+          ? { ai: 0, rating: null, review_note: '', rated_at: null, ...row }
+          : { ...row },
+    );
 }
 
 /** Convert a SQLite row to the values Postgres stores and returns. */

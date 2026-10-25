@@ -5,9 +5,13 @@ import {
   Injectable,
   Module,
   Post,
+  Req,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import type { AuthRequest } from '../auth/auth.guard';
+import { TextsService } from '../texts/texts.service';
+import { TextsModule } from '../texts/texts.module';
 import {
   IsIn,
   IsOptional,
@@ -31,7 +35,7 @@ class ReadingTextDto {
   @IsOptional() @IsIn(READING_LEVELS.map((l) => l.id)) level?: ReadingLevel;
 }
 export type CardAnswer = { front: string; back: string; examples: string };
-export type GeneratedText = { title: string; body: string };
+export type GeneratedText = { title: string; body: string; feedback_from?: string };
 const instructions = `You write answers for English vocabulary flashcards.
 The front of the card is a word or phrase. Reply with JSON only, no prose, in this shape:
 {"front": "...", "back": "...", "examples": "..."}
@@ -69,6 +73,20 @@ Write an original, engaging and factually careful text of about 1,000 words (bet
 - Use vocabulary and grammar that suit the level, with a natural range of useful words, collocations and phrasal verbs.
 - Write 6 to 10 paragraphs separated by a blank line.
 - Reply in plain text without Markdown: the first line is only the title (at most 10 words), then a blank line, then the text. No headings, lists, glossary, questions or notes.`;
+/** The learner's verdict on their last rated text, turned into instructions. */
+function feedbackNote(feedback: { title: string; rating: number; review_note: string }) {
+  const note = feedback.review_note.trim();
+  return (
+    '\n\nThe learner rated their previous text "' +
+    feedback.title +
+    '" ' +
+    feedback.rating +
+    ' out of 5' +
+    (note ? ' and wrote:\n---\n' + note + '\n---' : ' without notes') +
+    '\nUse this as guidance for the new text: keep what they liked and fix what they did not. ' +
+    'Take extra care this time: plan how the text meets this feedback, write it, then check it against the feedback before you answer.'
+  );
+}
 const levelNames: Record<ReadingLevel, string> = {
   B1: 'B1 (intermediate)',
   B2: 'B2 (upper-intermediate)',
@@ -98,6 +116,7 @@ export function parseReadingText(content: string): GeneratedText {
 }
 @Injectable()
 export class AiService {
+  constructor(private readonly texts: TextsService) {}
   /** Ask the 9Router chat endpoint; the key and model stay on the server. */
   private async chat(
     messages: { role: 'system' | 'user'; content: string }[],
@@ -129,23 +148,31 @@ export class AiService {
     return content;
   }
   async readingText(
+    userId: string,
     topic: ReadingTopic,
     level: ReadingLevel = 'B2',
   ): Promise<GeneratedText> {
     const label = READING_TOPICS.find((t) => t.id === topic)!.label;
+    const feedback = await this.texts.latestFeedback(userId);
     try {
       const content = await this.chat(
         [
           { role: 'system', content: readingInstructions },
           {
             role: 'user',
-            content: 'Topic: ' + label + '\nLevel: ' + levelNames[level],
+            content:
+              'Topic: ' +
+              label +
+              '\nLevel: ' +
+              levelNames[level] +
+              (feedback ? feedbackNote(feedback) : ''),
           },
         ],
-        0.9,
-        120000,
+        feedback ? 0.7 : 0.9,
+        150000,
       );
-      return parseReadingText(content);
+      const text = parseReadingText(content);
+      return feedback ? { ...text, feedback_from: feedback.title } : text;
     } catch (error) {
       if (error instanceof ServiceUnavailableException) throw error;
       throw new BadGatewayException('Could not write a text. Try again.');
@@ -190,9 +217,9 @@ class AiController {
   }
   @Post('reading-text')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  readingText(@Body() body: ReadingTextDto) {
-    return this.ai.readingText(body.topic, body.level);
+  readingText(@Req() request: AuthRequest, @Body() body: ReadingTextDto) {
+    return this.ai.readingText(request.user.id, body.topic, body.level);
   }
 }
-@Module({ controllers: [AiController], providers: [AiService] })
+@Module({ imports: [TextsModule], controllers: [AiController], providers: [AiService] })
 export class AiModule {}

@@ -39,6 +39,9 @@ export class TextsPage {
   protected readonly topic = signal<ReadingTopic>('technology');
   protected readonly level = signal<ReadingLevel>('B2');
   protected readonly generating = signal(false);
+  /** The text in the dialog came from AI, so it will be rated after reading. */
+  protected readonly aiWritten = signal(false);
+  protected readonly feedbackFrom = signal('');
   /** Ignores a generation that finishes after the dialog was closed or reopened. */
   private generation = 0;
 
@@ -63,6 +66,8 @@ export class TextsPage {
   protected openNew() {
     this.title.set('');
     this.body.set('');
+    this.aiWritten.set(false);
+    this.feedbackFrom.set('');
     this.formError.set('');
     this.generating.set(false);
     this.generation++;
@@ -84,6 +89,8 @@ export class TextsPage {
       if (run !== this.generation) return;
       this.title.set(text.title);
       this.body.set(text.body);
+      this.aiWritten.set(true);
+      this.feedbackFrom.set(text.feedback_from ?? '');
     } catch (e: any) {
       if (run === this.generation)
         this.formError.set(e?.message ?? 'Could not write a text. Try again.');
@@ -106,7 +113,7 @@ export class TextsPage {
     this.formError.set('');
     this.saving.set(true);
     try {
-      const text = await this.textsSvc.create(title.slice(0, 200), body);
+      const text = await this.textsSvc.create(title.slice(0, 200), body, this.aiWritten());
       this.closeModal();
       this.router.navigate(['/read', text.id]);
     } catch (e: any) {
