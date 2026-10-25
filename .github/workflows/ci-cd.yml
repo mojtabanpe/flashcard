@@ -71,32 +71,24 @@ jobs:
           retention-days: 7
   deploy:
     needs: package
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/master'
     environment: production
-    runs-on: ubuntu-latest
+    # The runner lives on the server (user recall-deploy), so no SSH is needed.
+    runs-on: [self-hosted, recall]
     timeout-minutes: 20
     steps:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: recall-release
-      - name: Upload and deploy over verified SSH
+      - name: Install and start the release
         env:
-          DEPLOY_HOST: '194.48.198.106'
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
-          DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
-          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           RELEASE: ${{ github.sha }}
         run: |
           set -euo pipefail
-          [[ "$DEPLOY_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
-          [[ "$DEPLOY_PORT" =~ ^[0-9]+$ ]]
-          test -n "$SSH_PRIVATE_KEY"
-          test -n "$SSH_KNOWN_HOSTS"
-          install -d -m 700 ~/.ssh
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/recall
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/recall ~/.ssh/known_hosts
-          ssh_opts=(-i ~/.ssh/recall -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20 -p "$DEPLOY_PORT")
-          ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p /opt/recall/releases/$RELEASE"
-          scp -i ~/.ssh/recall -o BatchMode=yes -o StrictHostKeyChecking=yes -P "$DEPLOY_PORT" release.tar.gz "$DEPLOY_USER@$DEPLOY_HOST:/opt/recall/releases/$RELEASE/release.tar.gz"
-          ssh "${ssh_opts[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "cd /opt/recall/releases/$RELEASE && tar -xzf release.tar.gz && bash release.sh $RELEASE"
+          [[ "$RELEASE" =~ ^[a-f0-9]{40}$ ]]
+          folder="/opt/recall/releases/$RELEASE"
+          mkdir -p "$folder"
+          cp release.tar.gz "$folder/release.tar.gz"
+          cd "$folder"
+          tar -xzf release.tar.gz
+          bash release.sh "$RELEASE"
