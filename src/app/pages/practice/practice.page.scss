@@ -57,3 +57,7 @@
   .lines__line { grid-template-columns: 1fr auto; }
   .lines__speaker { grid-column: 1 / -1; }
 }
+
+audio { display: block; max-width: 100%; margin-block: 16px; }
+
+@media (max-width: 380px) { .tabs__tab { padding-inline: 8px; font-size: .85rem; } }

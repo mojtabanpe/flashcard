@@ -13,6 +13,10 @@ import {
 export class PracticeService {
   private readonly api = inject(ApiService);
 
+  transcribe(audio: Blob): Promise<{ text: string }> {
+    return this.api.request('POST', '/ai/practice/transcribe', audio);
+  }
+
   writingTask(situation: ConversationSituation, level: ReadingLevel): Promise<WritingTask> {
     return this.api.request('POST', '/ai/practice/writing-task', { situation, level });
   }

@@ -1,5 +1,8 @@
+import type { Request } from 'express';
 import {
   BadGatewayException,
+  BadRequestException,
+  Req,
   Body,
   Controller,
   Injectable,
@@ -164,6 +167,30 @@ export class PracticeService {
       parseWritingFeedback,
     );
   }
+  async transcribe(audio: Buffer, contentType: string) {
+    if (!Buffer.isBuffer(audio) || !audio.length)
+      throw new BadRequestException('Record an audio answer first.');
+    if (audio.length > 1500 * 1024) throw new BadRequestException('Recording is too large.');
+    const mime = contentType.split(';')[0];
+    const extensions: Record<string, string> = { 'audio/webm': 'webm', 'audio/mp4': 'mp4', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/wav': 'wav' };
+    if (!extensions[mime]) throw new BadRequestException('Unsupported audio format.');
+    const key = process.env['STT_API_KEY'] ?? process.env['AI_API_KEY'] ?? process.env['TTS_API_KEY'];
+    if (!key) throw new ServiceUnavailableException('Speech recognition is not configured.');
+    const endpoint = process.env['STT_URL'] ?? new URL('audio/transcriptions', (process.env['AI_URL'] ?? process.env['TTS_URL'] ?? 'http://127.0.0.1:20128/v1/chat/completions').replace(/(?:chat\/completions|audio\/speech)$/, '')).href;
+    const form = new FormData();
+    form.set('model', process.env['STT_MODEL'] ?? 'dg/whisper-large');
+    form.set('file', new Blob([new Uint8Array(audio)], { type: mime }), 'answer.' + extensions[mime]);
+    try {
+      const response = await fetch(endpoint, { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: form, signal: AbortSignal.timeout(90000) });
+      if (!response.ok) throw new Error('Transcription failed');
+      const result = await response.json() as { text?: unknown };
+      if (typeof result.text !== 'string' || !result.text.trim())
+        throw new Error('No speech recognized');
+      return { text: result.text.trim().slice(0, 3000) };
+    } catch {
+      throw new BadGatewayException('Could not understand the recording. Try again or type your answer.');
+    }
+  }
   dialogue(situation: ConversationSituation, level?: ReadingLevel) {
     return this.ask(dialogueInstructions, this.context(situation, level), 0.9, parseDialogue);
   }
@@ -171,6 +198,11 @@ export class PracticeService {
 @Controller('ai/practice')
 class PracticeController {
   constructor(private readonly practice: PracticeService) {}
+  @Post('transcribe')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  transcribe(@Req() request: Request) {
+    return this.practice.transcribe(request.body, request.headers['content-type'] ?? '');
+  }
   @Post('writing-task')
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   writingTask(@Body() body: PracticeDto) {

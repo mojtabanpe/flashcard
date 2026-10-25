@@ -1,4 +1,5 @@
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { raw } from 'express';
 import { resolve } from 'node:path';
 import 'reflect-metadata';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -17,6 +18,7 @@ export async function createApp(): Promise<INestApplication> {
     .map((s) => s.trim());
   if (process.env['NODE_ENV'] === 'production' && !process.env['APP_ORIGINS'])
     throw new Error('APP_ORIGINS is required in production.');
+  app.use('/api/ai/practice/transcribe', raw({ type: ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg', 'audio/wav'], limit: '1500kb' }));
   app.setGlobalPrefix('api');
   app.set('trust proxy', 'loopback');
   app.get(McpService).mount(app.getHttpAdapter().getInstance());

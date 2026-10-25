@@ -1,7 +1,7 @@
-<div class="container page">
+<div [class.container]="!embedded()" [class.page]="!embedded()">
   <div class="texts-head">
     <div>
-      <h1 class="texts-title">Reading</h1>
+      @if (embedded()) { <h2 class="texts-title">Reading</h2> } @else { <h1 class="texts-title">Reading</h1> }
       <p class="texts-intro">Listen to a text, double-click any word to learn it, and save it as a card.</p>
     </div>
     <button class="btn btn--accent" (click)="openNew()">

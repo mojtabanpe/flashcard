@@ -50,8 +50,11 @@ test('practice endpoints call the chat gateway with the situation and level', as
   }, body: JSON.stringify(body) });
   try {
     assert.equal((await call('/ai/practice/writing-task', { situation: 'cafe' })).status, 401);
+    assert.equal((await call('/ai/practice/transcribe', {})).status, 401);
     const signup = await call('/auth/signup', { email: 'practice@example.com', password: 'test-password' });
     const cookie = signup.headers.get('set-cookie').split(';')[0];
+
+    assert.equal((await call('/ai/practice/transcribe', {}, cookie)).status, 400);
 
     await t.test('writing task and feedback', async () => {
       reply = '{"scenario":"Your friend texts you.","message":"Free tonight?"}';
@@ -92,5 +95,38 @@ test('practice endpoints call the chat gateway with the situation and level', as
     await app.close();
     await new Promise((resolve) => upstream.close(resolve));
     await database.drop();
+  }
+});
+
+test('speech transcription sends multipart audio and handles failures', async () => {
+  const { PracticeService } = require('../dist/server/src/practice/practice.module');
+  const service = new PracticeService(null);
+  const originalFetch = global.fetch;
+  const originalKey = process.env.STT_API_KEY;
+  const originalUrl = process.env.STT_URL;
+  process.env.STT_API_KEY = 'test-stt';
+  process.env.STT_URL = 'http://gateway.test/v1/audio/transcriptions';
+  try {
+    global.fetch = async (url, options) => {
+      assert.equal(url, process.env.STT_URL);
+      assert.equal(options.headers.Authorization, 'Bearer test-stt');
+      assert.equal(options.body.get('model'), 'dg/whisper-large');
+      const file = options.body.get('file');
+      assert.equal(file.name, 'answer.webm');
+      assert.equal(file.type, 'audio/webm');
+      assert.equal(await file.text(), 'fake-audio');
+      return new Response(JSON.stringify({ text: ' Hello there. ' }));
+    };
+    assert.deepEqual(await service.transcribe(Buffer.from('fake-audio'), 'audio/webm;codecs=opus'), { text: 'Hello there.' });
+    await assert.rejects(service.transcribe(Buffer.alloc(0), 'audio/webm'), e => e.getStatus() === 400);
+    await assert.rejects(service.transcribe(Buffer.from('x'), 'text/plain'), e => e.getStatus() === 400);
+    global.fetch = async () => new Response('{}', { status: 502 });
+    await assert.rejects(service.transcribe(Buffer.from('x'), 'audio/mp4'), e => e.getStatus() === 502);
+    global.fetch = async () => new Response(JSON.stringify({ text: '' }));
+    await assert.rejects(service.transcribe(Buffer.from('x'), 'audio/mp4'), e => e.getStatus() === 502);
+  } finally {
+    global.fetch = originalFetch;
+    if (originalKey === undefined) delete process.env.STT_API_KEY; else process.env.STT_API_KEY = originalKey;
+    if (originalUrl === undefined) delete process.env.STT_URL; else process.env.STT_URL = originalUrl;
   }
 });

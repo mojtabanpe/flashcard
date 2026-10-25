@@ -1,16 +1,23 @@
 <div class="container page">
   <header class="practice-head">
     <h1 class="practice-title">Practice</h1>
-    <p class="practice-intro">Everyday conversation, whenever you want it: write a reply and get it corrected, or listen to a short chat.</p>
+    <p class="practice-intro">Practise everyday English whenever you want: read, write, listen, or speak.</p>
   </header>
 
   <div class="tabs" role="tablist" aria-label="Practice type">
     <button type="button" role="tab" class="tabs__tab" [class.is-active]="mode() === 'writing'"
             [attr.aria-selected]="mode() === 'writing'" (click)="setMode('writing')">Writing</button>
+    <button type="button" role="tab" class="tabs__tab" [class.is-active]="mode() === 'speaking'"
+            [attr.aria-selected]="mode() === 'speaking'" (click)="setMode('speaking')">Speaking</button>
     <button type="button" role="tab" class="tabs__tab" [class.is-active]="mode() === 'listening'"
             [attr.aria-selected]="mode() === 'listening'" (click)="setMode('listening')">Listening</button>
+    <button type="button" role="tab" class="tabs__tab" [class.is-active]="mode() === 'reading'"
+            [attr.aria-selected]="mode() === 'reading'" (click)="setMode('reading')">Reading</button>
   </div>
 
+  @if (mode() === 'reading') {
+    <app-texts [embedded]="true" />
+  } @else {
   <section class="panel setup">
     <div class="setup__row">
       <div class="field">
@@ -27,7 +34,7 @@
           @for (l of levels; track l.id) { <option [value]="l.id">{{ l.label }}</option> }
         </select>
       </div>
-      @if (mode() === 'writing') {
+      @if (mode() !== 'listening') {
         <button class="btn btn--accent setup__btn" (click)="newTask()" [disabled]="busy()">
           {{ task() ? 'New task' : 'Give me a task' }}
         </button>
@@ -45,7 +52,7 @@
     }
   </section>
 
-  @if (mode() === 'writing') {
+  @if (mode() !== 'listening') {
     @if (task(); as t) {
       <section class="panel block">
         <p class="kicker">Your task</p>
@@ -58,13 +65,22 @@
             </button>
           </blockquote>
         }
+        @if (mode() === 'speaking') {
+          <p>Say your reply aloud. Record up to one minute, then review the transcript before asking for feedback. Audio is sent for transcription; feedback covers your words, not pronunciation.</p>
+          <button class="btn btn--accent" (click)="record()" [disabled]="busy() || transcribing()" [attr.aria-pressed]="recording()">
+            {{ recording() ? 'Stop recording' : 'Record answer' }}
+          </button>
+          @if (recording()) { <p role="status">Recording… stops automatically after one minute.</p> }
+          @if (transcribing()) { <p role="status">Turning your speech into text…</p> }
+          @if (recordingUrl()) { <audio controls [src]="recordingUrl()" aria-label="Your recording"></audio> }
+        }
         <div class="field">
-          <label for="answer">Your answer</label>
+          <label for="answer">{{ mode() === 'speaking' ? 'Transcript (you can edit it)' : 'Your answer' }}</label>
           <textarea id="answer" class="textarea" rows="5" maxlength="3000" [disabled]="busy()"
                     placeholder="Write what you would say or text back…"
                     [ngModel]="answer()" (ngModelChange)="answer.set($event)"></textarea>
         </div>
-        <button class="btn btn--accent" (click)="check()" [disabled]="busy()">Check my answer</button>
+        <button class="btn btn--accent" (click)="check()" [disabled]="busy() || recording() || transcribing()">Check my answer</button>
       </section>
 
       @if (feedback(); as f) {
@@ -159,6 +175,7 @@
         </section>
       }
     }
+  }
   }
 </div>
 

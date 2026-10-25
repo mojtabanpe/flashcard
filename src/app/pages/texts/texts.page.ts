@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { DialogFocus } from '../../core/dialog-focus';
@@ -21,6 +21,7 @@ import {
   styleUrl: './texts.page.scss',
 })
 export class TextsPage {
+  readonly embedded = input(false);
   private readonly textsSvc = inject(TextsService);
   private readonly toast = inject(ToastService);
   private readonly confirm = inject(ConfirmService);

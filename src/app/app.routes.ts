@@ -40,8 +40,8 @@ export const routes: Routes = [
   },
   {
     path: 'read',
-    canActivate: [authGuard],
-    loadComponent: () => import('./pages/texts/texts.page').then((m) => m.TextsPage),
+    pathMatch: 'full',
+    redirectTo: 'practice?mode=reading',
   },
   {
     path: 'practice',
