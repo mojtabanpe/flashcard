@@ -11,19 +11,24 @@
         <a class="topbar__nav" routerLink="/">Library</a>
         <a class="topbar__nav" routerLink="/read">Reading</a>
         <a class="topbar__nav" href="/api/mcp/setup" target="_blank" rel="noopener">ChatGPT</a>
-        <a class="topbar__nav" routerLink="/account">Account</a>
         <div class="topbar__right">
           @if (pwa.canInstall()) {
-            <button class="btn btn--ghost btn--sm" (click)="pwa.install()">
+            <button class="btn btn--ghost btn--sm topbar__action" aria-label="Install app" (click)="pwa.install()">
               <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                    stroke-linecap="round" stroke-linejoin="round">
                 <path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />
               </svg>
-              Install app
+              <span class="topbar__label">Install app</span>
             </button>
           }
-          <span class="topbar__user">{{ auth.user()?.email }}</span>
-          <button class="btn btn--ghost btn--sm" (click)="signOut()">
+          <a class="btn btn--ghost btn--sm topbar__action" routerLink="/account" aria-label="Account" title="Account">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" />
+            </svg>
+            <span class="topbar__label topbar__user">{{ auth.user()?.email }}</span>
+          </a>
+          <button class="btn btn--ghost btn--sm topbar__action" aria-label="Sign out" title="Sign out" (click)="signOut()">
             <svg
               class="icon"
               viewBox="0 0 24 24"
@@ -37,7 +42,7 @@
               <polyline points="16 17 21 12 16 7" />
               <line x1="21" y1="12" x2="9" y2="12" />
             </svg>
-            Sign out
+            <span class="topbar__label">Sign out</span>
           </button>
         </div>
       }
