@@ -32,6 +32,12 @@ Open http://localhost:4333. Angular proxies `/api` to http://127.0.0.1:3000. The
 - `src/environments/environment.prod.ts`: production (`pnpm build`, the default configuration). It replaces the development file and enables the service worker.
 - `server/.env`: local API settings (see `server/.env.example`). Production settings live in `/opt/recall/shared/.env` on the server (see `deploy/.env.example`).
 
+## Passwords and email
+
+Signed-in users change their password on the Account page (`POST /api/auth/password`); other sessions are signed out and a notice is emailed. "Forgot password?" on the login page emails a single-use link that expires after one hour (`/reset-password?token=…`); only its SHA-256 hash is stored in `password_resets`, and using it signs out every session. The response is the same whether or not the account exists.
+
+Email goes out over `SMTP_URL` (e.g. `smtps://user:pass@smtp.example.com:465`) from `MAIL_FROM`; links use `APP_PUBLIC_URL` or the first `APP_ORIGINS` entry. Without `SMTP_URL`, development prints emails to the API log, tests keep them in `MailService.outbox`, and production answers "Forgot password" with 503.
+
 ## Data
 
 - `pnpm db:migrate-sqlite [path]`: one-time copy of a legacy SQLite database (default `data/recall.sqlite`) into an empty Postgres database. It runs in one transaction, verifies every table field by field, and is recorded in `data_imports`, so running it again does nothing. Timestamps keep millisecond precision.
@@ -49,9 +55,10 @@ The production build ships `ngsw-worker.js`, `manifest.webmanifest` and icons in
 
 ```text
 src/app/core/          HTTP client, auth, decks/cards/texts, TTS, AI, PWA services
-src/app/pages/         login, library, deck, study, reading list and reader
+src/app/pages/         login, password reset, account, library, deck, study, reading list and reader
 shared/                shared domain types and pure SM-2/Lightner functions
-server/src/auth/       bcrypt passwords, HttpOnly sessions, authentication guard
+server/src/auth/       bcrypt passwords, HttpOnly sessions, authentication guard, password change/reset
+server/src/mail/       SMTP email (nodemailer)
 server/src/decks/      owner-scoped deck CRUD and study counts
 server/src/cards/      owner-scoped card CRUD and transactional review scheduling
 server/src/texts/      owner-scoped reading texts
