@@ -12,6 +12,8 @@ export class TtsService {
   private url: string | null = null;
   private generation = 0;
   private finish: (() => void) | null = null;
+  /** Playback speed, e.g. 0.75 for slower listening practice. */
+  rate = 1;
 
   async speak(text: string): Promise<void> {
     const trimmed = text?.trim();
@@ -75,6 +77,7 @@ export class TtsService {
     this.cancel();
     this.url = URL.createObjectURL(blob);
     const audio = (this.audio = new Audio(this.url));
+    audio.playbackRate = this.rate;
     return new Promise<void>((resolve, reject) => {
       this.finish = resolve;
       audio.onended = () => {

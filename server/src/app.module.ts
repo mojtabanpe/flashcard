@@ -1,4 +1,5 @@
 import { AiModule } from './ai/ai.module';
+import { PracticeModule } from './practice/practice.module';
 import { TextsModule } from './texts/texts.module';
 import { PronunciationModule } from './pronunciation/pronunciation.module';
 import { HealthController } from './health.controller';
@@ -21,6 +22,7 @@ import { MailModule } from './mail/mail.module';
     CardsModule,
     PronunciationModule,
     AiModule,
+    PracticeModule,
     TextsModule,
     McpModule,
   ],

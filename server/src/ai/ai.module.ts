@@ -118,7 +118,7 @@ export function parseReadingText(content: string): GeneratedText {
 export class AiService {
   constructor(private readonly texts: TextsService) {}
   /** Ask the 9Router chat endpoint; the key and model stay on the server. */
-  private async chat(
+  async chat(
     messages: { role: 'system' | 'user'; content: string }[],
     temperature: number,
     timeout: number,
@@ -221,5 +221,10 @@ class AiController {
     return this.ai.readingText(request.user.id, body.topic, body.level);
   }
 }
-@Module({ imports: [TextsModule], controllers: [AiController], providers: [AiService] })
+@Module({
+  imports: [TextsModule],
+  controllers: [AiController],
+  providers: [AiService],
+  exports: [AiService],
+})
 export class AiModule {}

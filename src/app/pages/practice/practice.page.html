@@ -1,0 +1,192 @@
+<div class="container page">
+  <header class="practice-head">
+    <h1 class="practice-title">Practice</h1>
+    <p class="practice-intro">Everyday conversation, whenever you want it: write a reply and get it corrected, or listen to a short chat.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Practice type">
+    <button type="button" role="tab" class="tabs__tab" [class.is-active]="mode() === 'writing'"
+            [attr.aria-selected]="mode() === 'writing'" (click)="setMode('writing')">Writing</button>
+    <button type="button" role="tab" class="tabs__tab" [class.is-active]="mode() === 'listening'"
+            [attr.aria-selected]="mode() === 'listening'" (click)="setMode('listening')">Listening</button>
+  </div>
+
+  <section class="panel setup">
+    <div class="setup__row">
+      <div class="field">
+        <label for="situation">Situation</label>
+        <select id="situation" class="input" [disabled]="busy()"
+                [ngModel]="situation()" (ngModelChange)="situation.set($event)">
+          @for (s of situations; track s.id) { <option [value]="s.id">{{ s.label }}</option> }
+        </select>
+      </div>
+      <div class="field">
+        <label for="level">Level</label>
+        <select id="level" class="input" [disabled]="busy()"
+                [ngModel]="level()" (ngModelChange)="level.set($event)">
+          @for (l of levels; track l.id) { <option [value]="l.id">{{ l.label }}</option> }
+        </select>
+      </div>
+      @if (mode() === 'writing') {
+        <button class="btn btn--accent setup__btn" (click)="newTask()" [disabled]="busy()">
+          {{ task() ? 'New task' : 'Give me a task' }}
+        </button>
+      } @else {
+        <button class="btn btn--accent setup__btn" (click)="newDialogue()" [disabled]="busy()">
+          {{ dialogue() ? 'New conversation' : 'Make a conversation' }}
+        </button>
+      }
+    </div>
+    @if (busy()) {
+      <p class="setup__status" role="status"><span class="spinner" style="width:16px;height:16px;border-width:2px"></span> Preparing… this can take up to a minute.</p>
+    }
+    @if (error()) {
+      <p class="setup__error" role="alert">{{ error() }}</p>
+    }
+  </section>
+
+  @if (mode() === 'writing') {
+    @if (task(); as t) {
+      <section class="panel block">
+        <p class="kicker">Your task</p>
+        <p class="task__scenario">{{ t.scenario }}</p>
+        @if (t.message) {
+          <blockquote class="task__message">
+            <span>“{{ t.message }}”</span>
+            <button type="button" class="icon-btn" (click)="speak(t.message)" aria-label="Listen to the message" title="Listen">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
+            </button>
+          </blockquote>
+        }
+        <div class="field">
+          <label for="answer">Your answer</label>
+          <textarea id="answer" class="textarea" rows="5" maxlength="3000" [disabled]="busy()"
+                    placeholder="Write what you would say or text back…"
+                    [ngModel]="answer()" (ngModelChange)="answer.set($event)"></textarea>
+        </div>
+        <button class="btn btn--accent" (click)="check()" [disabled]="busy()">Check my answer</button>
+      </section>
+
+      @if (feedback(); as f) {
+        <section class="panel block" aria-labelledby="fb-title">
+          <h2 id="fb-title" class="block__title">Feedback</h2>
+          @if (f.comment) { <p class="fb__comment">{{ f.comment }}</p> }
+
+          @if (f.mistakes.length) {
+            <h3 class="block__sub">Mistakes</h3>
+            <ul class="fb__mistakes">
+              @for (m of f.mistakes; track $index) {
+                <li><s>{{ m.original }}</s> → <strong>{{ m.fix }}</strong>@if (m.why) {<span class="fb__why">{{ m.why }}</span>}</li>
+              }
+            </ul>
+          } @else {
+            <p class="fb__ok">No mistakes. Well done!</p>
+          }
+
+          <h3 class="block__sub">Corrected</h3>
+          <p class="fb__text">{{ f.corrected }}</p>
+
+          <h3 class="block__sub">
+            How a native speaker might say it
+            <button type="button" class="icon-btn" (click)="speak(f.natural)" aria-label="Listen to the natural version" title="Listen">
+              <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /></svg>
+            </button>
+          </h3>
+          <p class="fb__text fb__text--natural">{{ f.natural }}</p>
+
+          <ng-container *ngTemplateOutlet="phraseList; context: { $implicit: f.phrases }" />
+        </section>
+      }
+    }
+  } @else {
+    @if (dialogue(); as d) {
+      <section class="panel block">
+        <div class="listen__head">
+          <h2 class="block__title">{{ showText() ? d.title : 'Listen first' }}</h2>
+          <div class="speeds" role="group" aria-label="Speed">
+            @for (s of speeds; track s) {
+              <button type="button" class="speeds__btn" [class.is-active]="speed() === s"
+                      [attr.aria-pressed]="speed() === s" (click)="setSpeed(s)">{{ s }}×</button>
+            }
+          </div>
+        </div>
+        <div class="listen__actions">
+          <button class="btn" [class.btn--accent]="!playing()" (click)="playAll()" [attr.aria-pressed]="playing()">
+            {{ playing() ? 'Stop' : 'Play conversation' }}
+          </button>
+          <button class="btn btn--ghost" (click)="showText.set(!showText())">
+            {{ showText() ? 'Hide text' : 'Show text' }}
+          </button>
+        </div>
+
+        @if (showText()) {
+          <ol class="lines">
+            @for (l of d.lines; track $index) {
+              <li class="lines__line" [class.is-playing]="line() === $index">
+                <span class="lines__speaker">{{ l.speaker }}</span>
+                <span class="lines__text">{{ l.text }}</span>
+                <button type="button" class="icon-btn" (click)="speak(l.text)" [attr.aria-label]="'Replay line ' + ($index + 1)" title="Replay">
+                  <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l11-6.5a1 1 0 0 0 0-1.72l-11-6.5A1 1 0 0 0 8 5.5Z" /></svg>
+                </button>
+              </li>
+            }
+          </ol>
+        } @else if (playing()) {
+          <p class="listen__progress" role="status">Line {{ line() + 1 }} of {{ d.lines.length }}</p>
+        }
+      </section>
+
+      @if (d.questions.length) {
+        <section class="panel block" aria-labelledby="q-title">
+          <h2 id="q-title" class="block__title">Did you catch it?</h2>
+          @for (q of d.questions; track $index; let qi = $index) {
+            <fieldset class="question">
+              <legend>{{ q.question }}</legend>
+              @for (o of q.options; track $index; let oi = $index) {
+                <button type="button" class="question__option"
+                        [class.is-right]="choices()[qi] !== undefined && oi === q.answer"
+                        [class.is-wrong]="choices()[qi] === oi && oi !== q.answer"
+                        [disabled]="choices()[qi] !== undefined" (click)="choose(qi, oi)">{{ o }}</button>
+              }
+            </fieldset>
+          }
+        </section>
+      }
+
+      @if (d.phrases.length) {
+        <section class="panel block">
+          <ng-container *ngTemplateOutlet="phraseList; context: { $implicit: d.phrases }" />
+        </section>
+      }
+    }
+  }
+</div>
+
+<ng-template #phraseList let-phrases>
+  @if (phrases.length) {
+    <div class="phrases__head">
+      <h3 class="block__sub">Useful phrases</h3>
+      @if (decks().length) {
+        <label class="phrases__deck">
+          <span class="sr-only">Deck for new cards</span>
+          <select class="input" [ngModel]="deckId()" (ngModelChange)="deckId.set($event)">
+            @for (deck of decks(); track deck.id) { <option [value]="deck.id">{{ deck.name }}</option> }
+          </select>
+        </label>
+      }
+    </div>
+    <ul class="phrases">
+      @for (p of phrases; track p.phrase) {
+        <li class="phrases__item">
+          <div class="phrases__body">
+            <strong>{{ p.phrase }}</strong>
+            <span>{{ p.meaning }}</span>
+          </div>
+          <button type="button" class="btn btn--ghost btn--sm" [disabled]="added().has(p.phrase)" (click)="addPhrase(p)">
+            {{ added().has(p.phrase) ? 'Added' : '+ Card' }}
+          </button>
+        </li>
+      }
+    </ul>
+  }
+</ng-template>

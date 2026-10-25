@@ -136,6 +136,10 @@ button, a, input, select, textarea, summary { -webkit-tap-highlight-color: trans
  .topbar__label { display: none; }
  .topbar__action { padding-inline: 10px; }
 }
+/* ChatGPT setup moves to the Account page so the nav fits on phones. */
+@media(max-width: 520px) {
+ .topbar__nav--wide { display: none; }
+}
 @media(max-width: 430px) {
  .container.topbar__inner { padding-inline: 16px; gap: 0 10px; }
  .brand__name { display: none; }

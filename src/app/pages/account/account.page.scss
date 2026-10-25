@@ -3,6 +3,7 @@
 .account-title { font-size: clamp(1.8rem, 4vw, 2.4rem); }
 .account-intro { color: var(--ink-soft); margin: 10px 0 0; overflow-wrap: anywhere; }
 .account-card { max-width: 480px; padding: 28px; }
+.account-card--next { margin-top: 16px; }
 .account-card__title { font-size: 1.25rem; }
 .account-card__note { color: var(--ink-soft); margin: 8px 0 24px; line-height: 1.6; }
 @media (max-width: 600px) {

@@ -44,6 +44,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/texts/texts.page').then((m) => m.TextsPage),
   },
   {
+    path: 'practice',
+    canActivate: [authGuard],
+    loadComponent: () => import('./pages/practice/practice.page').then((m) => m.PracticePage),
+  },
+  {
     path: 'read/:id',
     canActivate: [authGuard],
     loadComponent: () => import('./pages/reader/reader.page').then((m) => m.ReaderPage),
