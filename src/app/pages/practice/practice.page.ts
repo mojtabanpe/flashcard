@@ -293,6 +293,7 @@ export class PracticePage {
       await this.tts.readAloud(
         dialogue.lines.map((l) => l.text),
         (i) => this.line.set(i),
+        dialogue.lines.map(l => this.speakerVoice(l.speaker)),
       );
     } finally {
       this.playing.set(false);
@@ -300,10 +301,14 @@ export class PracticePage {
     }
   }
 
-  protected speak(text: string) {
+  protected speakerVoice(speaker: string): 'primary' | 'secondary' {
+    return speaker === this.dialogue()?.lines[0]?.speaker ? 'primary' : 'secondary';
+  }
+
+  protected speak(text: string, voice: 'primary' | 'secondary' = 'primary') {
     this.stop();
     this.tts.rate = this.speed();
-    void this.tts.speak(text);
+    void this.tts.speak(text, voice);
   }
 
   protected stop() {

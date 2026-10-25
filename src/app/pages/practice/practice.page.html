@@ -144,7 +144,7 @@
               <li class="lines__line" [class.is-playing]="line() === $index">
                 <span class="lines__speaker">{{ l.speaker }}</span>
                 <span class="lines__text">{{ l.text }}</span>
-                <button type="button" class="icon-btn" (click)="speak(l.text)" [attr.aria-label]="'Replay line ' + ($index + 1)" title="Replay">
+                <button type="button" class="icon-btn" (click)="speak(l.text, speakerVoice(l.speaker))" [attr.aria-label]="'Replay line ' + ($index + 1)" title="Replay">
                   <svg class="icon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l11-6.5a1 1 0 0 0 0-1.72l-11-6.5A1 1 0 0 0 8 5.5Z" /></svg>
                 </button>
               </li>

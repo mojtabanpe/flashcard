@@ -51,6 +51,14 @@ test('production routing and authenticated speech proxy', async t => {
       assert.equal((await call('/pronunciation', { text: 'x'.repeat(2001) }, cookie)).status, 400);
       assert.equal(seen.length, 1);
     });
+    await t.test('second speaker uses Eric and rejects arbitrary voices', async () => {
+      const before = seen.length;
+      const response = await call('/pronunciation', { text: 'Hello from Eric.', voice: 'secondary' }, cookie);
+      assert.equal(response.status, 201);
+      assert.equal(seen[before].body.model, 'edge-tts/en-US-EricNeural');
+      assert.equal((await call('/pronunciation', { text: 'Hi', voice: 'arbitrary-model' }, cookie)).status, 400);
+      assert.equal(seen.length, before + 1);
+    });
     await t.test('provider failures return a generic error and signup can be disabled', async () => {
       fail = true;
       const response = await call('/pronunciation', { text: 'bond' }, cookie);

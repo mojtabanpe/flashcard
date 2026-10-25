@@ -10,6 +10,7 @@ import { ToastService } from '../../core/toast.service';
 
 describe('Practice tab drafts', () => {
   it('keeps speaking and writing tasks and answers separate when switching tabs', async () => {
+    const tts = { stop: vi.fn(), readAloud: vi.fn().mockResolvedValue(undefined), speak: vi.fn(), rate: 1 };
     const service = { writingTask: vi.fn().mockResolvedValueOnce({ scenario: 'Order a coffee.', message: 'What would you like?' }).mockResolvedValueOnce({ scenario: 'Text a friend.', message: 'Free tonight?' }) };
     TestBed.configureTestingModule({ providers: [
       { provide: ActivatedRoute, useValue: { queryParamMap: of(convertToParamMap({})) } },
@@ -17,7 +18,7 @@ describe('Practice tab drafts', () => {
       { provide: PracticeService, useValue: service },
       { provide: DecksService, useValue: { listWithStats: () => Promise.resolve([]) } },
       { provide: CardsService, useValue: {} },
-      { provide: TtsService, useValue: { stop: vi.fn(), rate: 1 } },
+      { provide: TtsService, useValue: tts },
       { provide: ToastService, useValue: {} },
     ] });
     const fixture = TestBed.createComponent(PracticePage);
@@ -49,6 +50,14 @@ describe('Practice tab drafts', () => {
     page.setMode('speaking');
     expect(page.task().scenario).toBe('Ask for directions.');
     expect(page.busy()).toBe(false);
+    page.dialogue.set({ title: 'Chat', lines: [
+      { speaker: 'Amy', text: 'Hi' }, { speaker: 'Ben', text: 'Hello' },
+      { speaker: 'Ben', text: 'How are you?' }, { speaker: 'Amy', text: 'Good!' },
+    ], questions: [], phrases: [] });
+    await page.playAll();
+    expect(tts.readAloud.mock.calls[0][2]).toEqual(['primary', 'secondary', 'secondary', 'primary']);
+    page.speak('Hello', page.speakerVoice('Ben'));
+    expect(tts.speak).toHaveBeenCalledWith('Hello', 'secondary');
     fixture.destroy();
   });
 });

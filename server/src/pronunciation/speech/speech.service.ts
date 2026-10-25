@@ -28,11 +28,12 @@ export type SpeechResult = AudioResult & {
 export class SpeechService {
   private readonly pending = new Map<string, Promise<SpeechResult>>();
   constructor(private readonly cache: AudioCacheService) {}
-  async speak(userId: string, text: string): Promise<SpeechResult> {
+  async speak(userId: string, text: string, voice: 'primary' | 'secondary' = 'primary'): Promise<SpeechResult> {
     const endpoint =
       process.env['TTS_URL'] ?? 'http://127.0.0.1:20128/v1/audio/speech';
-    const model =
-      process.env['TTS_MODEL'] ?? 'edge-tts/en-US-MichelleNeural';
+    const model = voice === 'secondary'
+      ? process.env['TTS_SECONDARY_MODEL'] ?? 'edge-tts/en-US-EricNeural'
+      : process.env['TTS_MODEL'] ?? 'edge-tts/en-US-MichelleNeural';
     const normalized = text.trim(),
       key = speechCacheKey(userId, endpoint, model, normalized);
     const running = this.pending.get(key);

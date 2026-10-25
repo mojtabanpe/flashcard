@@ -15,13 +15,13 @@ export class TtsService {
   /** Playback speed, e.g. 0.75 for slower listening practice. */
   rate = 1;
 
-  async speak(text: string): Promise<void> {
+  async speak(text: string, voice: 'primary' | 'secondary' = 'primary'): Promise<void> {
     const trimmed = text?.trim();
     if (!trimmed) return;
     const generation = ++this.generation;
     this.cancel();
     try {
-      const blob = await this.fetchAudio(trimmed);
+      const blob = await this.fetchAudio(trimmed, voice);
       if (generation !== this.generation) return;
       await this.play(blob, generation);
     } catch {
@@ -36,7 +36,7 @@ export class TtsService {
    * Read `chunks` aloud in order, fetching the next chunk while the current one plays.
    * Resolves when every chunk has played or reading was stopped.
    */
-  async readAloud(chunks: string[], onChunk: (index: number) => void): Promise<void> {
+  async readAloud(chunks: string[], onChunk: (index: number) => void, voices: ('primary' | 'secondary')[] = []): Promise<void> {
     const generation = ++this.generation;
     this.cancel();
     const parts = chunks.map((c) => c.trim());
@@ -44,9 +44,9 @@ export class TtsService {
     try {
       for (let i = 0; i < parts.length; i++) {
         if (!parts[i]) continue;
-        const current = next ?? this.fetchAudio(parts[i]);
+        const current = next ?? this.fetchAudio(parts[i], voices[i]);
         const following = parts.findIndex((p, j) => j > i && !!p);
-        next = following > 0 ? this.fetchAudio(parts[following]) : null;
+        next = following > 0 ? this.fetchAudio(parts[following], voices[following]) : null;
         next?.catch(() => undefined);
         const blob = await current;
         if (generation !== this.generation) return;
@@ -66,8 +66,8 @@ export class TtsService {
     this.cancel();
   }
 
-  private fetchAudio(text: string): Promise<Blob> {
-    return firstValueFrom(this.http.post(environment.apiUrl + '/pronunciation', { text }, {
+  private fetchAudio(text: string, voice: 'primary' | 'secondary' = 'primary'): Promise<Blob> {
+    return firstValueFrom(this.http.post(environment.apiUrl + '/pronunciation', { text, ...(voice === 'secondary' ? { voice } : {}) }, {
       responseType: 'blob', withCredentials: true, headers: { 'X-Recall-Client': 'web' },
     }));
   }
