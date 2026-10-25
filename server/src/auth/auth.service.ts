@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -18,10 +19,15 @@ interface UserRow extends User {
   password_hash: string;
   banned_until: string | null;
   deleted_at: string | null;
+  email_verified_at: string | null;
 }
 export const sessionCookie = 'recall_session';
 const lifetime = 30 * 24 * 60 * 60 * 1000;
 const resetLifetime = 60 * 60 * 1000;
+const verifyLifetime = 24 * 60 * 60 * 1000;
+/** New accounts must confirm their email unless this is switched off (tests). */
+const verificationRequired = () =>
+  process.env['REQUIRE_EMAIL_VERIFICATION'] !== 'false';
 const digest = (token: string) =>
   createHash('sha256').update(token).digest('hex');
 @Injectable()
@@ -33,14 +39,25 @@ export class AuthService {
   ) {}
   async signUp(email: string, password: string) {
     email = email.trim().toLowerCase();
+    const verify = verificationRequired();
+    if (verify && !this.mail.enabled)
+      throw new ServiceUnavailableException(
+        'Sign up needs email, which is not available right now.',
+      );
     if (await this.db.one('SELECT id FROM users WHERE lower(email) = $1', [email]))
       throw new ConflictException('An account with this email already exists.');
     const passwordHash = await hash(password, 12);
     const id = randomUUID();
     try {
       await this.db.run(
-        'INSERT INTO users (id,email,password_hash,created_at) VALUES ($1,$2,$3,$4)',
-        [id, email, passwordHash, new Date().toISOString()],
+        'INSERT INTO users (id,email,password_hash,created_at,email_verified_at) VALUES ($1,$2,$3,$4,$5)',
+        [
+          id,
+          email,
+          passwordHash,
+          new Date().toISOString(),
+          verify ? null : new Date().toISOString(),
+        ],
       );
     } catch (error) {
       if ((error as { code?: string }).code === '23505')
@@ -49,7 +66,62 @@ export class AuthService {
         );
       throw error;
     }
-    return this.newSession({ id, email });
+    if (!verify) return this.newSession({ id, email });
+    this.sendVerificationLink(email).catch((error: Error) =>
+      this.logger.error('Verification email failed: ' + error.message),
+    );
+    return null;
+  }
+  /** Email a fresh confirmation link; silent for unknown or confirmed accounts. */
+  requestVerification(email: string) {
+    if (!this.mail.enabled)
+      throw new ServiceUnavailableException('Email is not available right now.');
+    this.sendVerificationLink(email).catch((error: Error) =>
+      this.logger.error('Verification email failed: ' + error.message),
+    );
+  }
+  private async sendVerificationLink(email: string) {
+    const row = await this.db.one<UserRow>(
+      'SELECT id,email,email_verified_at,banned_until,deleted_at FROM users WHERE lower(email)=$1',
+      [email.trim().toLowerCase()],
+    );
+    if (!row || row.email_verified_at || row.deleted_at) return;
+    const token = randomBytes(32).toString('base64url');
+    await this.db.run('DELETE FROM email_verifications WHERE expires_at <= $1 OR user_id=$2', [
+      Date.now(),
+      row.id,
+    ]);
+    await this.db.run('INSERT INTO email_verifications VALUES ($1,$2,$3)', [
+      digest(token),
+      row.id,
+      Date.now() + verifyLifetime,
+    ]);
+    const link = new URL('/verify-email', this.mail.appUrl);
+    link.searchParams.set('token', token);
+    await this.mail.send({
+      to: row.email,
+      subject: 'Confirm your Recall email',
+      text: [
+        'Welcome to Recall. Confirm your email to finish creating your account',
+        '(the link works once, for 24 hours):',
+        link.href,
+        '',
+        'If you didn’t sign up, ignore this email.',
+      ].join('\n'),
+    });
+  }
+  /** Use a confirmation token once. */
+  async verifyEmail(token: string) {
+    const row = await this.db.one<{ id: string }>(
+      `WITH used AS (DELETE FROM email_verifications WHERE token_hash=$1 AND expires_at>$2 RETURNING user_id)
+      UPDATE users SET email_verified_at=COALESCE(email_verified_at, now())
+      WHERE id IN (SELECT user_id FROM used) RETURNING id`,
+      [digest(token), Date.now()],
+    );
+    if (!row)
+      throw new BadRequestException(
+        'This confirmation link is invalid or has expired.',
+      );
   }
   async signIn(email: string, password: string) {
     const row = await this.db.one<UserRow>(
@@ -66,6 +138,10 @@ export class AuthService {
       (row.banned_until && Date.parse(row.banned_until) > Date.now())
     )
       throw new UnauthorizedException('Email or password is incorrect.');
+    if (!row.email_verified_at)
+      throw new ForbiddenException(
+        'Confirm your email first. Check your inbox for the link.',
+      );
     return this.newSession({ id: row.id, email: row.email });
   }
   private async newSession(user: User) {
@@ -189,10 +265,10 @@ export class AuthService {
         (row.banned_until && Date.parse(row.banned_until) > Date.now())
       )
         return null;
-      await client.query('UPDATE users SET password_hash=$1 WHERE id=$2', [
-        passwordHash,
-        row.id,
-      ]);
+      await client.query(
+        'UPDATE users SET password_hash=$1, email_verified_at=COALESCE(email_verified_at, now()) WHERE id=$2',
+        [passwordHash, row.id],
+      );
       await client.query('DELETE FROM sessions WHERE user_id=$1', [row.id]);
       await client.query('DELETE FROM password_resets WHERE user_id=$1', [
         row.id,

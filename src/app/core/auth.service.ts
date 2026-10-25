@@ -17,12 +17,21 @@ export class AuthService {
       .then((result) => this._user.set(result.user))
       .catch(() => this._user.set(null));
   }
+  /** Resolves true when a confirmation email must be opened before signing in. */
   async signUp(email: string, password: string) {
-    const result = await this.api.request<{ user: User }>('POST', '/auth/signup', {
-      email,
-      password,
-    });
+    const result = await this.api.request<{ user: User | null; verify?: boolean }>(
+      'POST',
+      '/auth/signup',
+      { email, password },
+    );
     this._user.set(result.user);
+    return !!result.verify;
+  }
+  async verifyEmail(token: string) {
+    await this.api.request('POST', '/auth/verify-email', { token });
+  }
+  async resendVerification(email: string) {
+    await this.api.request('POST', '/auth/resend-verification', { email });
   }
   async signIn(email: string, password: string) {
     const result = await this.api.request<{ user: User }>('POST', '/auth/signin', {

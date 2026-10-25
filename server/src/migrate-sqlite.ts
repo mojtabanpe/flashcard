@@ -9,7 +9,7 @@ type Row = Record<string, unknown>;
 const importName = 'sqlite';
 /** Parent tables first so foreign keys hold during the copy. */
 const tables: Record<string, { key: string[]; timestamps: string[]; booleans?: string[] }> = {
-  users: { key: ['id'], timestamps: ['created_at', 'banned_until', 'deleted_at'] },
+  users: { key: ['id'], timestamps: ['created_at', 'banned_until', 'deleted_at', 'email_verified_at'] },
   sessions: { key: ['token_hash'], timestamps: [] },
   decks: { key: ['id'], timestamps: ['created_at', 'updated_at'] },
   cards: {
@@ -31,7 +31,8 @@ function readSource(db: DatabaseSync, table: string): Row[] {
   return db
     .prepare(`SELECT * FROM ${table} ORDER BY ${key.join(',')}`)
     .all()
-    .map((row) => ({ ...row }));
+    // Accounts from before email confirmation existed count as confirmed.
+    .map((row) => (table === 'users' ? { ...row, email_verified_at: row['created_at'] } : { ...row }));
 }
 
 /** Convert a SQLite row to the values Postgres stores and returns. */

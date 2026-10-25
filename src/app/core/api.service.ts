@@ -17,12 +17,15 @@ export class ApiService {
     } catch (error) {
       if (error instanceof HttpErrorResponse) {
         const message = error.error?.message;
-        throw new Error(
-          Array.isArray(message)
-            ? message.join(' ')
-            : typeof message === 'string'
-              ? message
-              : 'Unable to reach the server. Please try again.',
+        throw Object.assign(
+          new Error(
+            Array.isArray(message)
+              ? message.join(' ')
+              : typeof message === 'string'
+                ? message
+                : 'Unable to reach the server. Please try again.',
+          ),
+          { status: error.status },
         );
       }
       throw error;

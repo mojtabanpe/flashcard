@@ -28,7 +28,7 @@ export async function cloneUser(
     if ((await client.query('SELECT 1 FROM users WHERE lower(email)=$1', [email])).rowCount)
       throw new Error('A user with this email already exists: ' + email);
     const id = randomUUID();
-    await client.query('INSERT INTO users (id,email,password_hash,created_at) VALUES ($1,$2,$3,now())', [
+    await client.query('INSERT INTO users (id,email,password_hash,created_at,email_verified_at) VALUES ($1,$2,$3,now(),now())', [
       id,
       email,
       password === 'same' ? source.password_hash : password.hash,

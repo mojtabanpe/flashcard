@@ -1,0 +1,21 @@
+<div class="container page">
+  <section class="panel narrow rise">
+    <span class="kicker">Confirm email</span>
+    @switch (state()) {
+      @case ('working') {
+        <h1 class="narrow__title">Confirming your email…</h1>
+        <p class="narrow__note" role="status"><span class="spinner"></span></p>
+      }
+      @case ('done') {
+        <h1 class="narrow__title">Email confirmed</h1>
+        <p class="narrow__note" role="status">Your account is ready. Sign in to start.</p>
+        <a class="btn btn--accent btn--block" routerLink="/login">Sign in</a>
+      }
+      @case ('failed') {
+        <h1 class="narrow__title">Couldn't confirm</h1>
+        <p class="narrow__note" role="alert">{{ message() }}</p>
+        <a class="btn btn--accent btn--block" routerLink="/login">Back to sign in</a>
+      }
+    }
+  </section>
+</div>

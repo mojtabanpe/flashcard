@@ -8,6 +8,11 @@ export const routes: Routes = [
     loadComponent: () => import('./pages/auth/auth.page').then((m) => m.AuthPage),
   },
   {
+    path: 'verify-email',
+    loadComponent: () =>
+      import('./pages/verify-email/verify-email.page').then((m) => m.VerifyEmailPage),
+  },
+  {
     path: 'reset-password',
     loadComponent: () =>
       import('./pages/reset-password/reset-password.page').then((m) => m.ResetPasswordPage),

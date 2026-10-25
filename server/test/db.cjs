@@ -6,6 +6,8 @@ exports.useTestDatabase = () => {
   const schema = 'test_' + randomBytes(6).toString('hex');
   process.env.DATABASE_URL = url;
   process.env.DATABASE_SCHEMA = schema;
+  // Most tests sign up and use the session at once; verification has its own test.
+  process.env.REQUIRE_EMAIL_VERIFICATION = 'false';
   return {
     url,
     schema,

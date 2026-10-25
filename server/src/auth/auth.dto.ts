@@ -20,3 +20,6 @@ export class ResetPasswordDto {
   @IsString() @Matches(/^[A-Za-z0-9_-]{43}$/) token!: string;
   @IsString() @MinLength(6) @MaxLength(72) password!: string;
 }
+export class VerifyEmailDto {
+  @IsString() @Matches(/^[A-Za-z0-9_-]{43}$/) token!: string;
+}

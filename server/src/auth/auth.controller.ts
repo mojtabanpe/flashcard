@@ -6,6 +6,7 @@ import {
   CredentialsDto,
   ForgotPasswordDto,
   ResetPasswordDto,
+  VerifyEmailDto,
 } from './auth.dto';
 import { AuthRequest, Public, readToken } from './auth.guard';
 import { Throttle } from '@nestjs/throttler';
@@ -25,10 +26,22 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     if (process.env['SIGNUP_ENABLED'] === 'false') throw new ForbiddenException('Sign up is disabled.');
-    return this.setSession(
-      response,
-      await this.auth.signUp(body.email, body.password),
-    );
+    const session = await this.auth.signUp(body.email, body.password);
+    return session ? this.setSession(response, session) : { user: null, verify: true };
+  }
+  @Public()
+  @Post('verify-email')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  async verifyEmail(@Body() body: VerifyEmailDto) {
+    await this.auth.verifyEmail(body.token);
+    return { ok: true };
+  }
+  @Public()
+  @Post('resend-verification')
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
+  resendVerification(@Body() body: ForgotPasswordDto) {
+    this.auth.requestVerification(body.email);
+    return { ok: true };
   }
   @Public()
   @Post('signin')

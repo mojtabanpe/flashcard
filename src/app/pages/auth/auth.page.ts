@@ -20,6 +20,8 @@ export class AuthPage {
   protected readonly password = signal('');
   protected readonly busy = signal(false);
   protected readonly sent = signal(false);
+  /** The account exists but its email is not confirmed yet. */
+  protected readonly unconfirmed = signal(false);
   protected readonly copy = computed(
     () =>
       ({
@@ -44,6 +46,7 @@ export class AuthPage {
   protected setMode(mode: 'signin' | 'signup' | 'forgot') {
     this.mode.set(mode);
     this.sent.set(false);
+    this.unconfirmed.set(false);
   }
 
   protected async submit() {
@@ -58,11 +61,9 @@ export class AuthPage {
     this.busy.set(true);
     try {
       if (this.mode() === 'signup') {
-        await this.auth.signUp(email, password);
-        // Accounts are auto-confirmed server-side; if sign-up didn't return a
-        // live session, sign in straight away for a seamless first run.
-        if (!this.auth.isAuthenticated()) {
-          await this.auth.signIn(email, password);
+        if (await this.auth.signUp(email, password)) {
+          this.unconfirmed.set(true);
+          return;
         }
         this.toast.show('Welcome to Recall ✦');
         this.router.navigateByUrl('/');
@@ -71,6 +72,19 @@ export class AuthPage {
         this.toast.show('Welcome back ✦');
         this.router.navigateByUrl('/');
       }
+    } catch (e: any) {
+      if (e?.status === 403 && this.mode() === 'signin') this.unconfirmed.set(true);
+      this.toast.error(e?.message ?? 'Something went wrong.');
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async resend() {
+    this.busy.set(true);
+    try {
+      await this.auth.resendVerification(this.email().trim());
+      this.toast.success('If the account is waiting for confirmation, we sent a new link.');
     } catch (e: any) {
       this.toast.error(e?.message ?? 'Something went wrong.');
     } finally {

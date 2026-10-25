@@ -44,6 +44,13 @@ export async function migrate(db: Queryable, schema = databaseSchema()) {
       expires_at BIGINT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS password_resets_owner ON password_resets(user_id);
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ DEFAULT now();
+    ALTER TABLE users ALTER COLUMN email_verified_at DROP DEFAULT;
+    CREATE TABLE IF NOT EXISTS email_verifications (
+      token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      expires_at BIGINT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS email_verifications_owner ON email_verifications(user_id);
     CREATE TABLE IF NOT EXISTS mcp_keys (
       id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       name TEXT NOT NULL, token_hash TEXT NOT NULL UNIQUE, scopes TEXT[] NOT NULL,

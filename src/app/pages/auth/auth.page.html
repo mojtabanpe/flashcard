@@ -36,6 +36,13 @@
           If an account exists for <strong>{{ email() }}</strong>, we've sent it a link to choose a
           new password. The link works once, for one hour.
         </p>
+      } @else if (unconfirmed() && mode() !== 'forgot') {
+        <p class="auth__note" role="status">
+          Open the link we emailed to <strong>{{ email() }}</strong> to confirm your account, then
+          sign in. The link works once, for 24 hours. Check Spam if you don't see it.
+        </p>
+        <button type="button" class="btn btn--accent btn--block btn--lg" [disabled]="busy()"
+                (click)="resend()">Send the link again</button>
       } @else {
         <form (ngSubmit)="submit()">
           @if (mode() === 'forgot') {
