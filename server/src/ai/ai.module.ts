@@ -8,13 +8,30 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import {
+  IsIn,
+  IsOptional,
+  IsString,
+  Matches,
+  MaxLength,
+} from 'class-validator';
+import {
+  READING_LEVELS,
+  READING_TOPICS,
+  type ReadingLevel,
+  type ReadingTopic,
+} from '../../../shared/models';
 class CardAnswerDto {
   @IsString() @Matches(/\S/) @MaxLength(500) front!: string;
   @IsOptional() @IsString() @MaxLength(120) deck?: string;
   @IsOptional() @IsString() @MaxLength(1000) context?: string;
 }
+class ReadingTextDto {
+  @IsIn(READING_TOPICS.map((t) => t.id)) topic!: ReadingTopic;
+  @IsOptional() @IsIn(READING_LEVELS.map((l) => l.id)) level?: ReadingLevel;
+}
 export type CardAnswer = { front: string; back: string; examples: string };
+export type GeneratedText = { title: string; body: string };
 const instructions = `You write answers for English vocabulary flashcards.
 The front of the card is a word or phrase. Reply with JSON only, no prose, in this shape:
 {"front": "...", "back": "...", "examples": "..."}
@@ -46,13 +63,47 @@ export function parseCardAnswer(content: string, front: string): CardAnswer {
     throw new Error('Invalid AI response');
   return { front: lemma || front.trim(), back, examples };
 }
+const readingInstructions = `You write English reading-practice texts for language learners.
+Write an original, engaging and factually careful text of about 1,000 words (between 900 and 1,100) on the given topic, at the given CEFR level, so a learner can read it closely in about 15 minutes.
+- Pick one specific, interesting angle on the topic instead of a general overview.
+- Use vocabulary and grammar that suit the level, with a natural range of useful words, collocations and phrasal verbs.
+- Write 6 to 10 paragraphs separated by a blank line.
+- Reply in plain text without Markdown: the first line is only the title (at most 10 words), then a blank line, then the text. No headings, lists, glossary, questions or notes.`;
+const levelNames: Record<ReadingLevel, string> = {
+  B1: 'B1 (intermediate)',
+  B2: 'B2 (upper-intermediate)',
+  C1: 'C1 (advanced)',
+};
+/** Splits "Title\n\nBody" from the model, tolerating Markdown and labels. */
+export function parseReadingText(content: string): GeneratedText {
+  const lines = content
+    .replace(/^\s*```\w*\n?|\n?```\s*$/g, '')
+    .replace(/\*\*|__/g, '')
+    .replace(/\r\n/g, '\n')
+    .trim()
+    .split('\n');
+  const title = (lines.shift() ?? '')
+    .replace(/^(?:#+\s*)?(?:title:\s*)?/i, '')
+    .replace(/^["'“]|["'”]$/g, '')
+    .trim();
+  const body = lines
+    .filter((line) => !/^#+\s/.test(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+  const words = body.split(/\s+/).filter(Boolean).length;
+  if (!title || title.length > 200 || words < 300 || body.length > 50000)
+    throw new Error('Invalid AI response');
+  return { title, body };
+}
 @Injectable()
 export class AiService {
-  async cardAnswer(
-    front: string,
-    deck?: string,
-    context?: string,
-  ): Promise<CardAnswer> {
+  /** Ask the 9Router chat endpoint; the key and model stay on the server. */
+  private async chat(
+    messages: { role: 'system' | 'user'; content: string }[],
+    temperature: number,
+    timeout: number,
+  ): Promise<string> {
     const endpoint =
       process.env['AI_URL'] ?? 'http://127.0.0.1:20128/v1/chat/completions';
     const model = process.env['AI_MODEL'] ?? 'zaban';
@@ -60,39 +111,71 @@ export class AiService {
     const key = process.env['AI_API_KEY'] ?? process.env['TTS_API_KEY'];
     if (!key)
       throw new ServiceUnavailableException('AI answers are not configured.');
+    const result = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ' + key,
+      },
+      body: JSON.stringify({ model, stream: false, temperature, messages }),
+      signal: AbortSignal.timeout(timeout),
+    });
+    if (!result.ok) throw new Error('Upstream AI request failed');
+    const body = (await result.json()) as {
+      choices?: { message?: { content?: unknown } }[];
+    };
+    const content = body.choices?.[0]?.message?.content;
+    if (typeof content !== 'string') throw new Error('Invalid AI response');
+    return content;
+  }
+  async readingText(
+    topic: ReadingTopic,
+    level: ReadingLevel = 'B2',
+  ): Promise<GeneratedText> {
+    const label = READING_TOPICS.find((t) => t.id === topic)!.label;
     try {
-      const result = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + key,
-        },
-        body: JSON.stringify({
-          model,
-          stream: false,
-          temperature: 0.3,
-          messages: [
-            { role: 'system', content: instructions },
-            {
-              role: 'user',
-              content:
-                (deck?.trim() ? 'Deck: ' + deck.trim() + '\n' : '') +
-                'Front: ' +
-                front.trim() +
-                (context?.trim() ? '\nContext: ' + context.trim() : ''),
-            },
-          ],
-        }),
-        signal: AbortSignal.timeout(60000),
-      });
-      if (!result.ok) throw new Error('Upstream AI request failed');
-      const body = (await result.json()) as {
-        choices?: { message?: { content?: unknown } }[];
-      };
-      const content = body.choices?.[0]?.message?.content;
-      if (typeof content !== 'string') throw new Error('Invalid AI response');
+      const content = await this.chat(
+        [
+          { role: 'system', content: readingInstructions },
+          {
+            role: 'user',
+            content: 'Topic: ' + label + '\nLevel: ' + levelNames[level],
+          },
+        ],
+        0.9,
+        120000,
+      );
+      return parseReadingText(content);
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
+      throw new BadGatewayException('Could not write a text. Try again.');
+    }
+  }
+
+  async cardAnswer(
+    front: string,
+    deck?: string,
+    context?: string,
+  ): Promise<CardAnswer> {
+    try {
+      const content = await this.chat(
+        [
+          { role: 'system', content: instructions },
+          {
+            role: 'user',
+            content:
+              (deck?.trim() ? 'Deck: ' + deck.trim() + '\n' : '') +
+              'Front: ' +
+              front.trim() +
+              (context?.trim() ? '\nContext: ' + context.trim() : ''),
+          },
+        ],
+        0.3,
+        60000,
+      );
       return parseCardAnswer(content, front);
-    } catch {
+    } catch (error) {
+      if (error instanceof ServiceUnavailableException) throw error;
       throw new BadGatewayException('Could not generate an answer. Try again.');
     }
   }
@@ -104,6 +187,11 @@ class AiController {
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   cardAnswer(@Body() body: CardAnswerDto) {
     return this.ai.cardAnswer(body.front, body.deck, body.context);
+  }
+  @Post('reading-text')
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
+  readingText(@Body() body: ReadingTextDto) {
+    return this.ai.readingText(body.topic, body.level);
   }
 }
 @Module({ controllers: [AiController], providers: [AiService] })

@@ -54,5 +54,37 @@ export interface ReadingText {
   updated_at: string;
 }
 
+/** Topics offered when generating a reading text with AI. */
+export const READING_TOPICS = [
+  { id: 'technology', label: 'Technology' },
+  { id: 'science', label: 'Science' },
+  { id: 'health', label: 'Health & fitness' },
+  { id: 'sports', label: 'Sports' },
+  { id: 'travel', label: 'Travel' },
+  { id: 'food', label: 'Food & cooking' },
+  { id: 'business', label: 'Business & work' },
+  { id: 'money', label: 'Money & economy' },
+  { id: 'environment', label: 'Environment & nature' },
+  { id: 'animals', label: 'Animals' },
+  { id: 'history', label: 'History' },
+  { id: 'culture', label: 'Culture & traditions' },
+  { id: 'arts', label: 'Art & design' },
+  { id: 'entertainment', label: 'Movies, music & books' },
+  { id: 'psychology', label: 'Psychology' },
+  { id: 'education', label: 'Education & learning' },
+  { id: 'space', label: 'Space & astronomy' },
+  { id: 'relationships', label: 'Family & relationships' },
+  { id: 'daily-life', label: 'Everyday life' },
+  { id: 'story', label: 'Short story' },
+] as const;
+export type ReadingTopic = (typeof READING_TOPICS)[number]['id'];
+
+export const READING_LEVELS = [
+  { id: 'B1', label: 'Intermediate (B1)' },
+  { id: 'B2', label: 'Upper-intermediate (B2)' },
+  { id: 'C1', label: 'Advanced (C1)' },
+] as const;
+export type ReadingLevel = (typeof READING_LEVELS)[number]['id'];
+
 /** How well the user recalled a card during review. */
 export type Rating = 'again' | 'hard' | 'good' | 'easy';

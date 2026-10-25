@@ -55,7 +55,7 @@ server/src/auth/       bcrypt passwords, HttpOnly sessions, authentication guard
 server/src/decks/      owner-scoped deck CRUD and study counts
 server/src/cards/      owner-scoped card CRUD and transactional review scheduling
 server/src/texts/      owner-scoped reading texts
-server/src/ai/         card answers through the 9Router chat endpoint
+server/src/ai/         card answers and ~1,000-word reading texts through the 9Router chat endpoint
 server/src/database/   Postgres pool, schema and transactions
 server/src/migrate-sqlite.ts  verified SQLite → Postgres import
 ```

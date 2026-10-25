@@ -18,7 +18,7 @@
   } @else if (!texts().length) {
     <div class="panel empty">
       <h3 style="font-size:1.4rem;margin-bottom:8px">No texts yet</h3>
-      <p style="max-width:40ch;margin:0 auto 22px">Paste an article, a story or a lesson to read it aloud and collect new words.</p>
+      <p style="max-width:40ch;margin:0 auto 22px">Paste an article, a story or a lesson, or let AI write one on a topic you choose. Read it aloud and collect new words.</p>
       <button class="btn btn--accent" (click)="openNew()">Add your first text</button>
     </div>
   } @else {
@@ -44,23 +44,57 @@
 </div>
 
 @if (modalOpen()) {
-  <div class="modal-scrim" appDialogFocus aria-label="Add a text" (dialogDismiss)="modalOpen.set(false)" (click)="modalOpen.set(false)">
+  <div class="modal-scrim" appDialogFocus aria-label="Add a text" (dialogDismiss)="closeModal()" (click)="closeModal()">
     <div class="modal modal--wide rise" (click)="$event.stopPropagation()">
       <h2 class="modal__title">Add a text</h2>
+
+      <section class="ai-gen" aria-labelledby="ai-gen-title">
+        <h3 id="ai-gen-title" class="ai-gen__title">Write one with AI</h3>
+        <p class="ai-gen__hint">About 1,000 words, around 15 minutes of reading.</p>
+        <div class="ai-gen__row">
+          <div class="field">
+            <label for="topic">Topic</label>
+            <select id="topic" class="input" [disabled]="generating()"
+                    [ngModel]="topic()" (ngModelChange)="topic.set($event)">
+              @for (t of topics; track t.id) { <option [value]="t.id">{{ t.label }}</option> }
+            </select>
+          </div>
+          <div class="field">
+            <label for="level">Level</label>
+            <select id="level" class="input" [disabled]="generating()"
+                    [ngModel]="level()" (ngModelChange)="level.set($event)">
+              @for (l of levels; track l.id) { <option [value]="l.id">{{ l.label }}</option> }
+            </select>
+          </div>
+          <button class="btn btn--accent ai-gen__btn" (click)="generate()" [disabled]="generating() || saving()">
+            @if (generating()) {
+              <span class="spinner" style="width:16px;height:16px;border-width:2px"></span> Writing…
+            } @else {
+              {{ body().trim() ? 'Write another' : 'Generate' }}
+            }
+          </button>
+        </div>
+        @if (generating()) {
+          <p class="ai-gen__status" role="status">Writing your text. This can take up to a minute.</p>
+        }
+      </section>
+
       <div class="field" style="margin-top:18px">
         <label for="tt">Title (optional)</label>
         <input id="tt" class="input" maxlength="200" placeholder="Taken from the first words if empty"
+               [disabled]="generating()"
                [ngModel]="title()" (ngModelChange)="title.set($event)" />
       </div>
       <div class="field" style="margin-top:16px">
         <label for="tb">Text</label>
-        <textarea id="tb" class="textarea" rows="12" placeholder="Paste the text you want to read…"
+        <textarea id="tb" class="textarea" rows="12" placeholder="Paste the text you want to read, or generate one above…"
+                  [disabled]="generating()"
                   [ngModel]="body()" (ngModelChange)="body.set($event)"></textarea>
       </div>
       @if (formError()) { <p class="form-error" role="alert">{{ formError() }}</p> }
       <div class="modal__actions">
-        <button class="btn btn--ghost" [disabled]="saving()" (click)="modalOpen.set(false)">Cancel</button>
-        <button class="btn btn--accent" (click)="save()" [disabled]="saving()">{{ saving() ? 'Saving…' : 'Save and read' }}</button>
+        <button class="btn btn--ghost" [disabled]="saving()" (click)="closeModal()">Cancel</button>
+        <button class="btn btn--accent" (click)="save()" [disabled]="saving() || generating()">{{ saving() ? 'Saving…' : 'Save and read' }}</button>
       </div>
     </div>
   </div>

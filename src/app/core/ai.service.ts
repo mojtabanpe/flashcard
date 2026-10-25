@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from './api.service';
+import { ReadingLevel, ReadingTopic } from './models';
 
 export interface CardAnswer {
   /** Dictionary form of the word, e.g. "took" → "take". */
@@ -8,8 +9,13 @@ export interface CardAnswer {
   examples: string;
 }
 
+export interface GeneratedText {
+  title: string;
+  body: string;
+}
+
 /**
- * Card-answer generation. The server calls the 9Router chat gateway so the
+ * Card-answer and reading-text generation. The server calls the 9Router chat gateway so the
  * provider key never reaches the browser.
  */
 @Injectable({ providedIn: 'root' })
@@ -23,5 +29,10 @@ export class AiService {
       ...(deck ? { deck } : {}),
       ...(context ? { context: context.slice(0, 1000) } : {}),
     });
+  }
+
+  /** Write a reading text of about 1,000 words (~15 minutes) on `topic`. */
+  generateText(topic: ReadingTopic, level: ReadingLevel): Promise<GeneratedText> {
+    return this.api.request('POST', '/ai/reading-text', { topic, level });
   }
 }

@@ -6,13 +6,22 @@ const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 const { createApp } = require('../dist/server/src/bootstrap');
 const { useTestDatabase } = require('./db.cjs');
-const { parseCardAnswer } = require('../dist/server/src/ai/ai.module');
+const { parseCardAnswer, parseReadingText } = require('../dist/server/src/ai/ai.module');
 
 test('parses fenced JSON and array examples', () => {
   assert.deepEqual(parseCardAnswer('```json\n{"back":" to fail to value ","examples":"- One.\\n- Two."}\n```', ' bond '), { front: 'bond', back: 'to fail to value', examples: '- One.\n- Two.' });
   assert.deepEqual(parseCardAnswer('{"front":"take","back":"x","examples":["A.","B."]}', 'took'), { front: 'take', back: 'x', examples: '- A.\n- B.' });
   assert.throws(() => parseCardAnswer('no json here', 'x'));
   assert.throws(() => parseCardAnswer('{"back":"","examples":""}', 'x'));
+});
+
+test('parses generated reading texts', () => {
+  const words = Array(450).fill('word').join(' ');
+  assert.deepEqual(parseReadingText('```\n# **Title: "Quiet Robots"**\n\n' + words + '.\n\n\n\n## Part two\n' + words + '\n```'), {
+    title: 'Quiet Robots', body: words + '.\n\n' + words,
+  });
+  assert.throws(() => parseReadingText('Title\n\nToo short to read for fifteen minutes.'));
+  assert.throws(() => parseReadingText(''));
 });
 
 test('authenticated card-answer proxy to the 9Router chat endpoint', async t => {
@@ -66,6 +75,25 @@ test('authenticated card-answer proxy to the 9Router chat endpoint', async t => 
       const response = await call('/ai/card-answer', { front: 'bond' }, cookie);
       assert.equal(response.status, 502);
       assert.doesNotMatch(await response.text(), /private upstream|test-ai-key/);
+    });
+    await t.test('writes a reading text for a chosen topic and level', async () => {
+      status = 200;
+      seen = [];
+      const words = Array(950).fill('word').join(' ');
+      reply = 'The Quiet Revolution in Batteries\n\n' + words + '.\n\n' + words + '.';
+      assert.equal((await call('/ai/reading-text', { topic: 'technology' })).status, 401);
+      const response = await call('/ai/reading-text', { topic: 'technology', level: 'C1' }, cookie);
+      assert.equal(response.status, 201);
+      assert.deepEqual(await response.json(), { title: 'The Quiet Revolution in Batteries', body: words + '.\n\n' + words + '.' });
+      assert.match(seen[0].body.messages[0].content, /about 1,000 words/);
+      assert.equal(seen[0].body.messages[1].content, 'Topic: Technology\nLevel: C1 (advanced)');
+      await call('/ai/reading-text', { topic: 'travel' }, cookie);
+      assert.equal(seen[1].body.messages[1].content, 'Topic: Travel\nLevel: B2 (upper-intermediate)');
+      for (const body of [{}, { topic: 'politics' }, { topic: 'sports', level: 'A1' }, { topic: 'sports', words: 5000 }])
+        assert.equal((await call('/ai/reading-text', body, cookie)).status, 400);
+      assert.equal(seen.length, 2);
+      reply = 'Too short';
+      assert.equal((await call('/ai/reading-text', { topic: 'sports' }, cookie)).status, 502);
     });
   } finally {
     await app.close();
